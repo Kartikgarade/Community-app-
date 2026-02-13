@@ -1,3 +1,12 @@
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    localStorage.setItem("test", "ok");
+    localStorage.removeItem("test");
+    console.log("localStorage enabled");
+  } catch (e) {
+    alert("Storage not available in app");
+  }
+});
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
