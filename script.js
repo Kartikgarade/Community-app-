@@ -9,7 +9,13 @@ const db = getFirestore(initializeApp(appConfig));
 const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Guest"];
 const SUBS = ["Hindi","Sanskrit","Marathi","English","Maths","Physics","Chemistry","Biology","History","Civics","Geography","Economics","IT"];
 
-let state = { user:null, admin:false, attn:{}, chats:[], anns:[], events:[], banned:[], vips:[], teachers:[], news:[], resources:[], tt:{}, profiles:{}, file:null, selectedDate: new Date().toISOString().split('T')[0], replyingTo:null, selectedMsg:null, loginTime: Date.now() };
+// TIMEZONE FIX: Force strict local date (YYYY-MM-DD) instead of UTC
+const getLocalDate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
+let state = { user:null, admin:false, attn:{}, chats:[], anns:[], events:[], banned:[], vips:[], teachers:[], news:[], resources:[], tt:{}, profiles:{}, file:null, selectedDate: getLocalDate(), replyingTo:null, selectedMsg:null, loginTime: Date.now() };
 
 window.app = {
     // --- NOTIFICATIONS ---
@@ -143,13 +149,13 @@ window.app = {
             if(document.getElementById('chat-feed')) app.renderChat();
         });
 
-        // Attendance
+        // Attendance (Updated to use local date)
         onSnapshot(collection(db,"attendance_log"), (s)=>{
             s.forEach(d => { state.attn[d.id] = d.data(); });
-            const today = new Date().toISOString().split('T')[0];
+            const today = getLocalDate();
             if(state.attn[today] && state.attn[today][state.user]) {
-                const s = state.attn[today][state.user];
-                document.getElementById('my-att-status').innerHTML = `Status: <b style="color:${s==='P'?'#10b981':'#ef4444'}">${s}</b>`;
+                const statusStr = state.attn[today][state.user];
+                document.getElementById('my-att-status').innerHTML = `Status: <b style="color:${statusStr==='P'?'#10b981':'#ef4444'}">${statusStr}</b>`;
             }
             app.renderCal();
         });
