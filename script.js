@@ -245,6 +245,42 @@ window.app = {
             if(state.admin) b.innerHTML=`<button class="btn" style="width:100%;background:var(--primary);color:white;padding:10px;margin-bottom:15px" onclick="app.modal('Post News',[{id:'t',label:'Title'},{id:'b',label:'Details'}],v=>app.postNews(v))">Post News</button>`;
             b.innerHTML+=`<div id="news-list"></div>`; app.renderNews();
         }
+        else if(t==='attendance'){
+            // Calculate current user's attendance stats
+            let p=0, a=0, l=0, total=0;
+            for(let date in state.attn){
+                if(state.attn[date][state.user]){
+                    total++;
+                    let status = state.attn[date][state.user];
+                    if(status==='P') p++;
+                    else if(status==='A') a++;
+                    else if(status==='H' || status==='HD') l++;
+                }
+            }
+            let pct = total > 0 ? Math.round((p/total)*100) : 0;
+
+            b.innerHTML = `
+            <div class="attn-dash-wrap">
+                <div class="progress-container">
+                    <div class="progress-ring" style="background: conic-gradient(var(--success) ${pct}%, #222 0%);">
+                        <div class="progress-val">
+                            ${pct}%
+                            <span>Present</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-card absent">
+                        <h3>${a}</h3>
+                        <p>Absent</p>
+                    </div>
+                    <div class="stat-card leave">
+                        <h3>${l}</h3>
+                        <p>Leave / HD</p>
+                    </div>
+                </div>
+            </div>`;
+        }
     },
 
     // --- CHAT SYSTEM (REPLY & SEEN BY) ---
