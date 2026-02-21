@@ -15,6 +15,14 @@
 </head>
 <body>
 
+    <div id="ban-screen" style="display:none; position:fixed; inset:0; background:#050505; z-index:10000; align-items:center; justify-content:center; text-align:center; padding:20px;">
+        <div>
+            <i class="fas fa-user-slash" style="font-size:4rem; color:var(--danger); margin-bottom:20px;"></i>
+            <h1 style="color:white; margin-bottom:10px;">Access Denied</h1>
+            <p style="color:#aaa; font-size:1.1rem; max-width: 300px; margin: 0 auto;">Access has been banned by the administrator due to policy violations.</p>
+        </div>
+    </div>
+
     <div id="toast-container"></div>
 
     <div id="custom-popup">
@@ -28,7 +36,8 @@
         <div class="msg-opt-box">
             <button onclick="app.doReply()">↩ Reply</button>
             <button onclick="app.showInfo()">ℹ Info (Seen By)</button>
-            <button id="btn-msg-del" style="color:var(--danger)" onclick="app.doDelMsg()">🗑 Delete</button>
+            <button id="btn-msg-del-everyone" style="color:var(--danger)" onclick="app.doDelMsg('everyone')">🗑 Delete for Everyone</button>
+            <button id="btn-msg-del-me" style="color:var(--warning)" onclick="app.doDelMsg('me')">🗑 Delete for Me</button>
             <button onclick="document.getElementById('msg-options').style.display='none'">Cancel</button>
         </div>
     </div>
@@ -39,11 +48,14 @@
     </div>
     
     <input type="file" id="avatar-input" hidden accept="image/*">
-    <input type="file" id="chat-input" hidden accept="image/*">
+    <input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm">
 
     <div id="media-viewer">
-        <span class="close-media" onclick="document.getElementById('media-viewer').style.display='none'">&times;</span>
-        <img id="media-img">
+        <span class="close-media" onclick="app.closeMedia()">&times;</span>
+        <a id="media-download" href="#" download class="download-media" title="Save to Device"><i class="fas fa-download"></i></a>
+        <img id="media-img" style="display:none;">
+        <video id="media-vid" controls style="display:none; max-width:95%; max-height:80%; border-radius:12px;"></video>
+        <iframe id="media-iframe" style="display:none; width:95%; max-width: 800px; aspect-ratio: 16/9; border-radius:12px; border:none; box-shadow: 0 10px 30px rgba(0,0,0,0.8);" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
 
     <div id="input-modal">
@@ -104,7 +116,7 @@
             <div class="admin-grid">
                 <div class="admin-btn" onclick="app.modal('Add Event',[{id:'t',label:'Title'},{id:'d',label:'Date'}],(v)=>app.addEvent(v[0],v[1]))"><i class="fas fa-calendar-plus"></i><span>Event</span></div>
                 <div class="admin-btn" onclick="app.modal('Update Exam',[{id:'n',label:'Name'},{id:'d',label:'Date'}],(v)=>app.updateExam(v[0],v[1]))"><i class="fas fa-edit"></i><span>Set Exam</span></div>
-                <div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check" style="color:var(--success)"></i><span>Attendance</span></div>
+                <div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check" style="color:var(--success)"></i><span>Mark Attendance</span></div>
                 <div class="admin-btn" onclick="app.openBan()"><i class="fas fa-users-cog" style="color:var(--warning)"></i><span>Users / VIP</span></div>
             </div>
         </div>
