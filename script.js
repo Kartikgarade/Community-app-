@@ -1,21 +1,24 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // CONFIG
 const appConfig = { apiKey: "AIzaSyCtjsy_NUH3vNHbiXlGP4nUmusefzIuJyI", authDomain: "all-in-one-community.firebaseapp.com", projectId: "all-in-one-community", storageBucket: "all-in-one-community.firebasestorage.app", messagingSenderId: "461209960805", appId: "1:461209960805:web:6f73660513cf6d3c40e18c" };
 const db = getFirestore(initializeApp(appConfig));
 
 // USERS & SUBJECTS
-const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Guest"];
+const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Chinmay","Siddharth","Guest"];
 const SUBS = ["Hindi","Sanskrit","Marathi","English","Maths","Physics","Chemistry","Biology","History","Civics","Geography","Economics","IT"];
 
-// TIMEZONE FIX: Force strict local date (YYYY-MM-DD) instead of UTC
+// TIMEZONE FIX: Force strict local date (YYYY-MM-DD)
 const getLocalDate = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
 
-let state = { user:null, admin:false, attn:{}, chats:[], anns:[], events:[], banned:[], vips:[], teachers:[], news:[], resources:[], tt:{}, profiles:{}, file:null, selectedDate: getLocalDate(), replyingTo:null, selectedMsg:null, loginTime: Date.now() };
+let state = { user:null, admin:false, attn:{}, chats:[], anns:[], events:[], banned:[], vips:[], teachers:[], news:[], resources:[], tt:{}, profiles:{}, file:null, selectedDate: getLocalDate(), replyingTo:null, selectedMsg:null, loginTime: Date.now(), typingTimeout: null };
+
+// PROFANITY DICTIONARY
+const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole"];
 
 window.app = {
     // --- NOTIFICATIONS ---
@@ -26,15 +29,12 @@ window.app = {
         t.innerHTML = `<i class="fas ${icon} toast-icon"></i> <span>${msg}</span>`;
         c.appendChild(t);
         
-        // System Notification
         if(Notification.permission === "granted" && document.hidden) {
             new Notification("New Notification", { body: msg, icon: 'https://cdn-icons-png.flaticon.com/512/1827/1827301.png' });
         }
-
         setTimeout(() => t.remove(), 3000);
     },
 
-    // --- CUSTOM POPUP SYSTEM ---
     popup: (msg, type='alert', cb=null) => {
         const p = document.getElementById('custom-popup');
         const acts = document.getElementById('popup-acts');
@@ -62,7 +62,6 @@ window.app = {
         const err = document.getElementById('err-msg');
         err.style.display = 'none';
 
-        // Request Notification Permission
         if(Notification.permission !== "granted") Notification.requestPermission();
 
         if(u === 'admin' && p === 'admin@157390') { 
@@ -124,11 +123,37 @@ window.app = {
                 const d = snap.data();
                 state.banned = d.list || [];
                 state.vips = d.vips || [];
-                if(state.banned.includes(state.user)) { app.popup("YOUR ACCOUNT IS BANNED"); location.reload(); }
+                
+                if(state.banned.includes(state.user) && !state.admin) { 
+                    document.getElementById('ban-screen').style.display = 'flex';
+                    document.getElementById('main-app').style.display = 'none';
+                } else {
+                    document.getElementById('ban-screen').style.display = 'none';
+                }
             }
         });
 
-        // Chat with Notifications
+        // TYPING UI UPDATE
+        onSnapshot(doc(db, "settings", "typing"), (snap) => {
+            if(snap.exists()){
+                const typers = snap.data().users || [];
+                const otherTypers = typers.filter(u => u !== state.user);
+                const tBox = document.getElementById('typing-box');
+                if(tBox) {
+                    if(otherTypers.length > 0) {
+                        tBox.innerHTML = `
+                        <div class="typing-wrap">
+                            <div class="typing-text"><b>${otherTypers.join(', ')}</b> is typing</div>
+                            <div class="typing-indicator"><span></span><span></span><span></span></div>
+                        </div>`;
+                        tBox.style.display = 'block';
+                    } else {
+                        tBox.style.display = 'none';
+                    }
+                }
+            }
+        });
+
         onSnapshot(query(collection(db,"chats"), orderBy("time","asc")), (s)=>{
             state.chats = []; 
             s.docChanges().forEach((change) => {
@@ -141,7 +166,9 @@ window.app = {
             });
             s.forEach(d => {
                 const msg = {id: d.id, ...d.data()};
-                state.chats.push(msg);
+                if(!msg.deletedBy || !msg.deletedBy.includes(state.user)) {
+                    state.chats.push(msg);
+                }
                 if(!msg.seenBy || !msg.seenBy.includes(state.user)) {
                     updateDoc(doc(db, "chats", msg.id), { seenBy: arrayUnion(state.user) });
                 }
@@ -149,7 +176,6 @@ window.app = {
             if(document.getElementById('chat-feed')) app.renderChat();
         });
 
-        // Attendance (Updated to use local date)
         onSnapshot(collection(db,"attendance_log"), (s)=>{
             s.forEach(d => { state.attn[d.id] = d.data(); });
             const today = getLocalDate();
@@ -172,7 +198,6 @@ window.app = {
 
         onSnapshot(collection(db,"events"), (s)=>{ state.events=[]; s.forEach(d=>state.events.push({id:d.id,...d.data()})); app.renderCal(); });
         
-        // Announce Notification
         onSnapshot(collection(db,"announcements"), (s)=>{ 
             s.docChanges().forEach(c => {
                 if(c.type==='added' && c.doc.data().time > state.loginTime) app.showToast("New Announcement!", "fa-bullhorn");
@@ -187,6 +212,138 @@ window.app = {
     },
 
     uploadAvatar: () => document.getElementById('avatar-input').click(),
+
+    // YOUTUBE LINK PARSER
+    getYtId: (url) => {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    },
+
+    open: (t) => {
+        const m = document.getElementById('feature-modal'); m.style.display='flex';
+        document.getElementById('f-title').innerText = t.toUpperCase();
+        const b = document.getElementById('f-body'); b.innerHTML = '';
+        
+        if(t==='notes' || t==='syllabus' || t==='papers'){
+            if(state.admin) b.innerHTML = `<button class="btn" style="width:100%;margin-bottom:15px;background:var(--success);color:black" onclick="app.modal('Add Link/Video',[{id:'t',label:'Title'},{id:'l',label:'Link (URL or YouTube)'}],v=>app.addRes('${t}',v))">Add Link or Video</button>`;
+            
+            const list = state.resources.filter(r => r.type === t);
+            if(list.length === 0) b.innerHTML += `<p style="text-align:center;color:#666;margin-top:20px">No content yet.</p>`;
+            
+            list.forEach(r => {
+                const ytId = app.getYtId(r.link);
+                const clickAction = ytId ? `app.viewYt('${ytId}')` : `window.open('${r.link}','_blank')`;
+                const icon = ytId ? `<i class="fab fa-youtube" style="color:var(--danger)"></i>` : `<i class="fas fa-external-link-alt" style="color:var(--accent)"></i>`;
+                
+                b.innerHTML += `<div class="list-card" onclick="${clickAction}"><b>${r.title}</b>${icon}${state.admin?`<i class="fas fa-trash del-icon" style="margin-left:10px" onclick="event.stopPropagation();app.delItem('resources','${r.id}')"></i>`:''}</div>`;
+            });
+        } 
+        else if(t==='chat'){
+            b.innerHTML = `
+            <div class="chat-wrap">
+                <div id="chat-feed" class="chat-feed"></div>
+                <div id="typing-box" style="display:none; margin-left:15px;"></div>
+                <div id="reply-bar" class="reply-preview" style="display:none"><span>Replying...</span><i class="fas fa-times" onclick="app.cancelReply()"></i></div>
+                <div class="chat-bar">
+                    <label><i class="fas fa-paperclip" style="color:#aaa;margin-right:10px;font-size:1.2rem;cursor:pointer"></i><input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm" onchange="app.sendFile(event)"></label>
+                    <input id="c-in" class="chat-in" placeholder="Message..." oninput="app.startTyping()">
+                    <i class="fas fa-paper-plane" style="color:var(--accent);cursor:pointer;font-size:1.2rem" onclick="app.send()"></i>
+                </div>
+            </div>`;
+            app.renderChat();
+        } 
+        else if(t==='timetable'){
+            b.innerHTML = `<div class="tt-wrapper"><div class="tt-grid" id="tt-grid"></div></div>`;
+            if(state.admin) b.innerHTML += `<div style="display:flex;gap:10px;margin-top:10px"><button class="btn" style="flex:1;background:#333;color:white" onclick="app.modal('Add Row',[{id:'t',label:'Time'}],v=>app.addTTRow(v[0]))">+ Row</button><button class="btn" style="flex:2;background:var(--primary);color:white" onclick="app.saveTT()">Save Changes</button></div>`;
+            app.renderTimeTable();
+        } 
+        else if(t==='ann'){
+            if(state.admin) b.innerHTML=`<div style="background:#222;padding:15px;border-radius:12px;margin-bottom:15px"><textarea id="a-in" style="width:100%;background:transparent;border:none;color:white;outline:none;min-height:60px" placeholder="Write..."></textarea><div style="display:flex;justify-content:space-between;margin-top:10px"><label style="color:var(--accent)"><i class="fas fa-image"></i><input type="file" hidden onchange="app.handleFile(event)"></label><button class="btn" style="background:var(--primary);padding:5px 15px;color:white" onclick="app.postAnn()">Post</button></div></div>`;
+            b.innerHTML+=`<div id="ann-feed"></div>`; app.renderAnn();
+        } 
+        else if(t==='teach'){
+            if(state.admin) b.innerHTML=`<button class="btn" style="width:100%;background:var(--primary);color:white;padding:10px;margin-bottom:15px" onclick="app.modal('Add Teacher',[{id:'s',label:'Subject'},{id:'n',label:'Name'},{id:'p',label:'Phone'}],v=>app.addTeach(v))">Add Teacher</button>`;
+            b.innerHTML+=`<div id="teach-list"></div>`; app.renderTeachers();
+        } 
+        else if(t==='news'){
+            if(state.admin) b.innerHTML=`<button class="btn" style="width:100%;background:var(--primary);color:white;padding:10px;margin-bottom:15px" onclick="app.modal('Post News',[{id:'t',label:'Title'},{id:'b',label:'Details'}],v=>app.postNews(v))">Post News</button>`;
+            b.innerHTML+=`<div id="news-list"></div>`; app.renderNews();
+        }
+        else if(t==='attendance'){
+            // ADMIN MASTER DASHBOARD
+            if(state.admin) {
+                let today = getLocalDate();
+                let todayData = state.attn[today] || {};
+                let tP = 0, tA = 0, tL = 0;
+                
+                USERS.forEach(u => {
+                    if(u !== "Guest" && u !== "admin") {
+                        let s = todayData[u];
+                        if(s === 'P') tP++;
+                        else if(s === 'A') tA++;
+                        else if(s === 'H' || s === 'HD') tL++;
+                    }
+                });
+                
+                let totalMarks = 0, totalP = 0;
+                for(let date in state.attn) {
+                    for(let user in state.attn[date]) {
+                        if(user !== "Guest" && user !== "admin") {
+                            totalMarks++;
+                            if(state.attn[date][user] === 'P') totalP++;
+                        }
+                    }
+                }
+                let healthPct = totalMarks > 0 ? Math.round((totalP / totalMarks) * 100) : 0;
+
+                b.innerHTML = `
+                <div class="attn-dash-wrap">
+                    <div class="master-stat-box">
+                        <h2>${tP}</h2>
+                        <p>Students Present Today</p>
+                    </div>
+                    <div class="stat-grid">
+                        <div class="stat-card absent"><h3>${tA}</h3><p>Absent</p></div>
+                        <div class="stat-card leave"><h3>${tL}</h3><p>On Leave / HD</p></div>
+                    </div>
+                    <div style="width: 100%; margin-top: 15px;">
+                        <p style="font-size: 0.85rem; color: #aaa; font-weight: 700; text-transform: uppercase;">Overall Batch Health (${healthPct}%)</p>
+                        <div class="health-bar-wrap">
+                            <div class="health-bar-fill" style="width: ${healthPct}%;"></div>
+                        </div>
+                    </div>
+                </div>`;
+            } 
+            // STUDENT DASHBOARD
+            else {
+                let p=0, a=0, l=0, total=0;
+                for(let date in state.attn){
+                    if(state.attn[date][state.user]){
+                        total++;
+                        let status = state.attn[date][state.user];
+                        if(status==='P') p++;
+                        else if(status==='A') a++;
+                        else if(status==='H' || status==='HD') l++;
+                    }
+                }
+                let pct = total > 0 ? Math.round((p/total)*100) : 0;
+
+                b.innerHTML = `
+                <div class="attn-dash-wrap">
+                    <div class="progress-container">
+                        <div class="progress-ring" style="background: conic-gradient(var(--success) ${pct}%, #222 0%);">
+                            <div class="progress-val">${pct}%<span>Present</span></div>
+                        </div>
+                    </div>
+                    <div class="stat-grid">
+                        <div class="stat-card absent"><h3>${a}</h3><p>Absent</p></div>
+                        <div class="stat-card leave"><h3>${l}</h3><p>Leave / HD</p></div>
+                    </div>
+                </div>`;
+            }
+        }
+    },
 
     renderCal: () => {
         const d = new Date();
@@ -213,98 +370,45 @@ window.app = {
         }
     },
 
-    // --- UI OPEN ---
-    open: (t) => {
-        const m = document.getElementById('feature-modal'); m.style.display='flex';
-        document.getElementById('f-title').innerText = t.toUpperCase();
-        const b = document.getElementById('f-body'); b.innerHTML = '';
-        
-        if(t==='notes' || t==='syllabus' || t==='papers'){
-            if(state.admin) b.innerHTML = `<button class="btn" style="width:100%;margin-bottom:15px;background:var(--success);color:black" onclick="app.modal('Add Link',[{id:'t',label:'Title'},{id:'l',label:'Link (URL)'}],v=>app.addRes('${t}',v))">Add Link</button>`;
-            
-            const list = state.resources.filter(r => r.type === t);
-            if(list.length === 0) b.innerHTML += `<p style="text-align:center;color:#666;margin-top:20px">No content yet.</p>`;
-            list.forEach(r => {
-                b.innerHTML += `<div class="list-card" onclick="window.open('${r.link}','_blank')"><b>${r.title}</b><i class="fas fa-external-link-alt" style="color:var(--accent)"></i>${state.admin?`<i class="fas fa-trash del-icon" style="margin-left:10px" onclick="event.stopPropagation();app.delItem('resources','${r.id}')"></i>`:''}</div>`;
-            });
-        } 
-        else if(t==='chat'){
-            b.innerHTML = `<div class="chat-wrap"><div id="chat-feed" class="chat-feed"></div>
-            <div id="reply-bar" class="reply-preview" style="display:none"><span>Replying...</span><i class="fas fa-times" onclick="app.cancelReply()"></i></div>
-            <div class="chat-bar"><label><i class="fas fa-paperclip" style="color:#aaa;margin-right:10px;font-size:1.2rem"></i><input type="file" id="chat-input" hidden onchange="app.sendFile(event)"></label><input id="c-in" class="chat-in" placeholder="Message..."><i class="fas fa-paper-plane" style="color:var(--accent)" onclick="app.send()"></i></div></div>`;
-            app.renderChat();
-        } 
-        else if(t==='timetable'){
-            b.innerHTML = `<div class="tt-wrapper"><div class="tt-grid" id="tt-grid"></div></div>`;
-            if(state.admin) b.innerHTML += `<div style="display:flex;gap:10px;margin-top:10px"><button class="btn" style="flex:1;background:#333;color:white" onclick="app.modal('Add Row',[{id:'t',label:'Time'}],v=>app.addTTRow(v[0]))">+ Row</button><button class="btn" style="flex:2;background:var(--primary);color:white" onclick="app.saveTT()">Save Changes</button></div>`;
-            app.renderTimeTable();
-        } 
-        else if(t==='ann'){
-            if(state.admin) b.innerHTML=`<div style="background:#222;padding:15px;border-radius:12px;margin-bottom:15px"><textarea id="a-in" style="width:100%;background:transparent;border:none;color:white;outline:none;min-height:60px" placeholder="Write..."></textarea><div style="display:flex;justify-content:space-between;margin-top:10px"><label style="color:var(--accent)"><i class="fas fa-image"></i><input type="file" hidden onchange="app.handleFile(event)"></label><button class="btn" style="background:var(--primary);padding:5px 15px;color:white" onclick="app.postAnn()">Post</button></div></div>`;
-            b.innerHTML+=`<div id="ann-feed"></div>`; app.renderAnn();
-        } 
-        else if(t==='teach'){
-            if(state.admin) b.innerHTML=`<button class="btn" style="width:100%;background:var(--primary);color:white;padding:10px;margin-bottom:15px" onclick="app.modal('Add Teacher',[{id:'s',label:'Subject'},{id:'n',label:'Name'},{id:'p',label:'Phone'}],v=>app.addTeach(v))">Add Teacher</button>`;
-            b.innerHTML+=`<div id="teach-list"></div>`; app.renderTeachers();
-        } 
-        else if(t==='news'){
-            if(state.admin) b.innerHTML=`<button class="btn" style="width:100%;background:var(--primary);color:white;padding:10px;margin-bottom:15px" onclick="app.modal('Post News',[{id:'t',label:'Title'},{id:'b',label:'Details'}],v=>app.postNews(v))">Post News</button>`;
-            b.innerHTML+=`<div id="news-list"></div>`; app.renderNews();
-        }
-        else if(t==='attendance'){
-            // Calculate current user's attendance stats
-            let p=0, a=0, l=0, total=0;
-            for(let date in state.attn){
-                if(state.attn[date][state.user]){
-                    total++;
-                    let status = state.attn[date][state.user];
-                    if(status==='P') p++;
-                    else if(status==='A') a++;
-                    else if(status==='H' || status==='HD') l++;
-                }
-            }
-            let pct = total > 0 ? Math.round((p/total)*100) : 0;
-
-            b.innerHTML = `
-            <div class="attn-dash-wrap">
-                <div class="progress-container">
-                    <div class="progress-ring" style="background: conic-gradient(var(--success) ${pct}%, #222 0%);">
-                        <div class="progress-val">
-                            ${pct}%
-                            <span>Present</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="stat-grid">
-                    <div class="stat-card absent">
-                        <h3>${a}</h3>
-                        <p>Absent</p>
-                    </div>
-                    <div class="stat-card leave">
-                        <h3>${l}</h3>
-                        <p>Leave / HD</p>
-                    </div>
-                </div>
-            </div>`;
-        }
+    // --- CHAT SYSTEM ---
+    startTyping: () => {
+        updateDoc(doc(db, "settings", "typing"), { users: arrayUnion(state.user) }).catch(()=>{});
+        clearTimeout(state.typingTimeout);
+        state.typingTimeout = setTimeout(() => {
+            updateDoc(doc(db, "settings", "typing"), { users: arrayRemove(state.user) }).catch(()=>{});
+        }, 2000);
     },
 
-    // --- CHAT SYSTEM (REPLY & SEEN BY) ---
+    stopTyping: () => {
+        clearTimeout(state.typingTimeout);
+        updateDoc(doc(db, "settings", "typing"), { users: arrayRemove(state.user) }).catch(()=>{});
+    },
+
     renderChat: () => {
         const c = document.getElementById('chat-feed'); if(!c) return;
         c.innerHTML = '';
         state.chats.forEach(m => {
             const mine = m.user === state.user;
             const isVip = state.vips.includes(m.user);
+            const isAdmin = m.user === 'admin';
             const pic = state.profiles[m.user] || `https://ui-avatars.com/api/?name=${m.user}&background=random`;
             
+            let mediaHtml = '';
+            if(m.img) {
+                if(m.img.startsWith('data:video')) {
+                    mediaHtml = `<video src="${m.img}" class="msg-vid" onclick="event.stopPropagation();app.viewMedia('${m.img}', 'video')"></video>`;
+                } else {
+                    mediaHtml = `<img src="${m.img}" class="msg-img" onclick="event.stopPropagation();app.viewMedia('${m.img}', 'image')">`;
+                }
+            }
+
             c.innerHTML += `
             <div class="msg-row ${mine?'mine':''}">
                 ${!mine ? `<img src="${pic}" class="chat-pfp">` : ''}
                 <div class="msg ${mine?'mine':'theirs'}" onclick="app.msgOpt('${m.id}', '${m.user}', '${m.text}')">
-                    <b>${m.user}</b> ${isVip?'<span class="vip-tag">VIP</span>':''}<br>
+                    <b>${m.user}</b> ${isAdmin?'<span class="admin-tag">ADMIN</span>':(isVip?'<span class="vip-tag">VIP</span>':'')}<br>
                     ${m.replyTo ? `<div class="quoted-msg"><b>Replying to:</b><br>${m.replyTo}</div>` : ''}
-                    ${m.img?`<img src="${m.img}" class="msg-img" onclick="event.stopPropagation();app.viewMedia(this.src)">`:''}
+                    ${mediaHtml}
                     ${m.text}
                     <div style="text-align:right;font-size:0.6rem;opacity:0.7;margin-top:5px">
                         ${new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} 
@@ -316,15 +420,27 @@ window.app = {
         c.scrollTop = c.scrollHeight;
     },
 
-    // OPEN MESSAGE OPTIONS
     msgOpt: (id, user, text) => {
         state.selectedMsg = {id, user, text};
-        const canDel = (user === state.user) || state.admin || state.vips.includes(state.user);
-        document.getElementById('btn-msg-del').style.display = canDel ? 'block' : 'none';
+        const msgData = state.chats.find(c => c.id === id);
+        
+        // --- ADMIN & VIP DELETE FIX ---
+        const msgTime = msgData ? msgData.time : 0;
+        const under5Mins = (Date.now() - msgTime) < 300000;
+        
+        const isMine = user === state.user;
+        const isVIP = state.vips.includes(state.user);
+        const isAdmin = state.admin;
+
+        // Admins and VIPs can delete ANYTHING, ANYTIME.
+        // Normal users can only delete their OWN messages, under 5 minutes.
+        const canDelEveryone = isAdmin || isVIP || (isMine && under5Mins);
+
+        document.getElementById('btn-msg-del-everyone').style.display = canDelEveryone ? 'block' : 'none';
+        document.getElementById('btn-msg-del-me').style.display = 'block'; 
         document.getElementById('msg-options').style.display = 'flex';
     },
 
-    // REPLY
     doReply: () => {
         state.replyingTo = state.selectedMsg;
         document.getElementById('msg-options').style.display = 'none';
@@ -336,7 +452,6 @@ window.app = {
     },
     cancelReply: () => { state.replyingTo = null; document.getElementById('reply-bar').style.display = 'none'; },
 
-    // INFO (SEEN BY)
     showInfo: async () => {
         document.getElementById('msg-options').style.display = 'none';
         const msgDoc = await getDoc(doc(db, "chats", state.selectedMsg.id));
@@ -344,22 +459,48 @@ window.app = {
         app.popup(`Seen by:\n${seen.join('\n') || "Just now"}`);
     },
 
-    // DELETE MSG
-    doDelMsg: () => {
+    doDelMsg: async (mode) => {
         document.getElementById('msg-options').style.display = 'none';
-        app.popup("Delete this message?", 'confirm', async () => {
-            await deleteDoc(doc(db,"chats", state.selectedMsg.id));
-        });
+        if(mode === 'everyone') {
+            app.popup("Delete for everyone?", 'confirm', async () => {
+                await deleteDoc(doc(db,"chats", state.selectedMsg.id));
+            });
+        } else {
+            app.popup("Delete for me?", 'confirm', async () => {
+                await updateDoc(doc(db,"chats", state.selectedMsg.id), { deletedBy: arrayUnion(state.user) });
+            });
+        }
+    },
+
+    checkProfanity: async (text) => {
+        if(state.admin) return false; 
+        const lower = text.toLowerCase();
+        for (let word of BAD_WORDS) {
+            if (lower.includes(word)) {
+                let newBanned = [...state.banned, state.user];
+                await setDoc(doc(db, "settings", "banned"), { list: newBanned, vips: state.vips });
+                return true;
+            }
+        }
+        return false;
     },
 
     send: async () => {
         const v = document.getElementById('c-in').value;
+        
+        if(v && await app.checkProfanity(v)) {
+            document.getElementById('c-in').value = ''; 
+            return; 
+        }
+
         if(v || state.file){
             await addDoc(collection(db,"chats"), {
                 user:state.user, text:v, img:state.file, time:Date.now(),
-                replyTo: state.replyingTo ? `${state.replyingTo.user}: ${state.replyingTo.text}` : null
+                replyTo: state.replyingTo ? `${state.replyingTo.user}: ${state.replyingTo.text}` : null,
+                deletedBy: [] 
             });
             document.getElementById('c-in').value = ''; state.file = null; app.cancelReply();
+            app.stopTyping();
         }
     },
 
@@ -384,11 +525,21 @@ window.app = {
 
     sendFile: (e) => {
         const f = e.target.files[0];
-        if(f) {
-            app.popup("Compressing & Sending...");
+        if(!f) return;
+        
+        if(f.size > 1048576) { app.popup("File is too large! Maximum 1MB allowed."); return; }
+
+        app.popup("Processing file...");
+        
+        if(f.type.startsWith('video/')) {
+            const reader = new FileReader();
+            reader.readAsDataURL(f);
+            reader.onload = (ev) => { state.file = ev.target.result; app.send(); };
+        } else {
             app.compressImage(f, (base64) => { state.file = base64; app.send(); });
         }
     },
+    
     handleFile: (e) => { 
         const f = e.target.files[0]; 
         if(f) {
@@ -396,16 +547,53 @@ window.app = {
         }
     },
 
+    // MEDIA VIEWER
+    viewMedia: (src, type) => { 
+        document.getElementById('media-viewer').style.display='flex';
+        document.getElementById('media-download').style.display='flex'; 
+        document.getElementById('media-download').href = src; 
+        document.getElementById('media-iframe').style.display = 'none';
+
+        if(type === 'video') {
+            document.getElementById('media-img').style.display = 'none';
+            document.getElementById('media-vid').style.display = 'block';
+            document.getElementById('media-vid').src = src;
+            document.getElementById('media-vid').play();
+        } else {
+            document.getElementById('media-vid').style.display = 'none';
+            document.getElementById('media-img').style.display = 'block';
+            document.getElementById('media-img').src = src;
+        }
+    },
+
+    viewYt: (id) => {
+        document.getElementById('media-viewer').style.display='flex';
+        document.getElementById('media-download').style.display = 'none'; 
+        document.getElementById('media-img').style.display = 'none';
+        document.getElementById('media-vid').style.display = 'none';
+        if(document.getElementById('media-vid').src) document.getElementById('media-vid').pause();
+        
+        const iframe = document.getElementById('media-iframe');
+        iframe.style.display = 'block';
+        iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+    },
+    
+    closeMedia: () => {
+        document.getElementById('media-viewer').style.display='none';
+        document.getElementById('media-vid').pause();
+        document.getElementById('media-vid').src = '';
+        document.getElementById('media-img').src = '';
+        document.getElementById('media-iframe').src = ''; 
+    },
+
     renderAnn: () => {
         const c=document.getElementById('ann-feed'); if(!c) return; c.innerHTML='';
         state.anns.forEach(a=>{
-            c.innerHTML+=`<div class="list-card" style="display:block"><div><span style="color:var(--accent)">ANNOUNCEMENT</span> <small style="float:right;color:#666">${new Date(a.time).toLocaleDateString()}</small></div><p style="margin-top:10px">${a.text}</p>${a.img?`<img src="${a.img}" style="width:100%;border-radius:10px;margin-top:10px" onclick="app.viewMedia(this.src)">`:''}${state.admin?`<div style="margin-top:10px;text-align:right"><i class="fas fa-trash del-icon" onclick="app.delItem('announcements','${a.id}')"></i></div>`:''}</div>`;
+            c.innerHTML+=`<div class="list-card" style="display:block"><div><span style="color:var(--accent)">ANNOUNCEMENT</span> <small style="float:right;color:#666">${new Date(a.time).toLocaleDateString()}</small></div><p style="margin-top:10px">${a.text}</p>${a.img?`<img src="${a.img}" style="width:100%;border-radius:10px;margin-top:10px" onclick="app.viewMedia('${a.img}', 'image')">`:''}${state.admin?`<div style="margin-top:10px;text-align:right"><i class="fas fa-trash del-icon" onclick="app.delItem('announcements','${a.id}')"></i></div>`:''}</div>`;
         });
     },
     postAnn: async () => { const v=document.getElementById('a-in').value; if(v||state.file){ await addDoc(collection(db,"announcements"),{text:v,img:state.file,time:Date.now()}); state.file=null; app.open('ann'); } },
 
-    viewMedia: (s) => { document.getElementById('media-viewer').style.display='flex'; document.getElementById('media-img').src=s; },
-    
     delItem: (col,id) => app.popup("Delete Item?", 'confirm', async () => await deleteDoc(doc(db,col,id))),
     delExam: () => app.popup("Remove Exam?", 'confirm', async () => await deleteDoc(doc(db,"settings","exam"))),
 
@@ -443,7 +631,7 @@ window.app = {
 
     openAttn: () => {
         const m=document.getElementById('feature-modal'); m.style.display='flex';
-        document.getElementById('f-title').innerText="ATTENDANCE";
+        document.getElementById('f-title').innerText="MARK ATTENDANCE";
         document.getElementById('f-body').innerHTML=`<div class="attn-date-bar"><span>Date:</span><input type="date" id="attn-date" onchange="app.changeDate(this.value)" style="background:none;border:none;color:white;font-family:inherit"></div><div id="attn-list"></div>`;
         document.getElementById('attn-date').value = state.selectedDate;
         app.renderAdminAttn();
