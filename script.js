@@ -18,7 +18,7 @@ const getLocalDate = () => {
 let state = { user:null, admin:false, attn:{}, chats:[], anns:[], events:[], banned:[], vips:[], teachers:[], news:[], resources:[], tt:{}, profiles:{}, file:null, selectedDate: getLocalDate(), replyingTo:null, selectedMsg:null, loginTime: Date.now(), typingTimeout: null };
 
 // PROFANITY DICTIONARY
-const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole"];
+const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole","fuck","f**k u","sonali","swati",];
 
 window.app = {
     // --- NOTIFICATIONS ---
