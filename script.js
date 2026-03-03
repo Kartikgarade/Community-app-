@@ -9,7 +9,7 @@ const db = getFirestore(appFire);
 const messaging = getMessaging(appFire);
 
 // --- GLOBAL VARIABLES ---
-const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Chinmay","deep","Siddharth","Guest"];
+const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Chinmay","deep","Siddharth","Rudransh","Guest"];
 const SUBS = ["Hindi","Sanskrit","Marathi","English","Maths","Physics","Chemistry","Biology","History","Civics","Geography","Economics","IT"];
 const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole"];
 
