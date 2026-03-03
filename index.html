@@ -30,13 +30,13 @@
         </div>
     </div>
 
-    <div id="msg-options" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;">
+    <div id="msg-options" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
         <div class="msg-opt-box">
-            <button onclick="app.doReply()">↩ Reply</button>
-            <button onclick="app.showInfo()">ℹ Info (Seen By)</button>
-            <button id="btn-msg-del-everyone" style="color:var(--danger)" onclick="app.doDelMsg('everyone')">🗑 Delete for Everyone</button>
-            <button id="btn-msg-del-me" style="color:var(--warning)" onclick="app.doDelMsg('me')">🗑 Delete for Me</button>
-            <button onclick="document.getElementById('msg-options').style.display='none'">Cancel</button>
+            <button onclick="app.doReply()"><i class="fas fa-reply" style="color:var(--accent); margin-right:8px;"></i> Reply</button>
+            <button onclick="app.showInfo()"><i class="fas fa-eye" style="color:var(--success); margin-right:8px;"></i> Info (Seen By)</button>
+            <button id="btn-msg-del-everyone" style="color:var(--danger)" onclick="app.doDelMsg('everyone')"><i class="fas fa-trash-alt" style="margin-right:8px;"></i> Delete for Everyone</button>
+            <button id="btn-msg-del-me" style="color:var(--warning)" onclick="app.doDelMsg('me')"><i class="fas fa-eraser" style="margin-right:8px;"></i> Delete for Me</button>
+            <button onclick="document.getElementById('msg-options').style.display='none'" style="text-align:center; color:#aaa; font-weight:bold;">Cancel</button>
         </div>
     </div>
 
@@ -47,7 +47,9 @@
     
     <input type="file" id="avatar-input" hidden accept="image/*">
     <input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm">
-    <input type="file" id="hw-file-input" hidden accept="image/*" multiple> <div id="media-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:6000; align-items:center; justify-content:center; flex-direction:column;">
+    <input type="file" id="hw-file-input" hidden accept="image/*" multiple>
+
+    <div id="media-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:6000; align-items:center; justify-content:center; flex-direction:column;">
         <span class="close-media" onclick="app.closeMedia()" style="position:absolute; top:20px; right:20px; color:white; font-size:2.5rem; cursor:pointer; z-index:6002;">&times;</span>
         <a id="media-download" href="#" download class="download-media" style="position:absolute; top:20px; left:20px; color:white; font-size:1.5rem; z-index:6002; background:rgba(255,255,255,0.2); padding:10px 12px; border-radius:50%; text-decoration:none;"><i class="fas fa-download"></i></a>
         
@@ -81,10 +83,15 @@
         </div>
     </div>
 
-    <div id="main-app" style="display:none;">
+    <div id="main-app" class="responsive-wrapper" style="display:none;">
         <header>
             <div class="user-info">
-                <img id="u-img" class="avatar skeleton" onclick="app.uploadAvatar()">
+                <div style="position:relative; display:inline-block; cursor:pointer;" onclick="app.uploadAvatar()" title="Update Profile Picture">
+                    <img id="u-img" class="avatar skeleton">
+                    <div style="position:absolute; bottom:-2px; right:-2px; background:var(--primary); border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg); box-shadow:0 0 5px rgba(0,0,0,0.5);">
+                        <i class="fas fa-camera" style="color:white; font-size:0.6rem;"></i>
+                    </div>
+                </div>
                 <div>
                     <h3 id="u-name" class="skeleton" style="width:80px;height:1em;margin-bottom:5px"></h3>
                     <span id="u-role" class="skeleton" style="width:50px;height:0.8em;font-size:0.8rem;color:#888"></span>
@@ -102,23 +109,19 @@
         <div class="grid">
             <div class="app-card" onclick="app.open('notes')"><i class="fas fa-book" style="color:#f472b6"></i><span>Notes</span></div>
             <div class="app-card" onclick="app.open('ann')"><i class="fas fa-bullhorn" style="color:#22d3ee"></i><span>Announce</span><div id="badge-ann" class="badge hidden">0</div></div>
-            <div class="app-card" onclick="app.open('chat')"><i class="fas fa-comments" style="color:#a78bfa"></i><span>Chat</span></div>
+            <div class="app-card" onclick="app.open('chat')"><i class="fas fa-comments" style="color:#a855f7"></i><span>Chat</span></div>
             <div class="app-card" onclick="app.open('attendance')"><i class="fas fa-user-check" style="color:#10b981"></i><span>Attendance</span></div>
             <div class="app-card" onclick="app.open('papers')"><i class="fas fa-file-alt" style="color:#cbd5e1"></i><span>Papers</span></div>
-            
             <div class="app-card" onclick="app.open('homework')"><i class="fas fa-book-open" style="color:#f59e0b"></i><span>Homework</span></div>
-            
             <div class="app-card" onclick="app.open('timetable')"><i class="fas fa-calendar-alt" style="color:#ec4899"></i><span>Table</span></div>
-            
             <div class="app-card" onclick="app.open('messages')"><i class="fas fa-envelope" style="color:#3b82f6"></i><span>Messages</span><div id="badge-msg" class="badge hidden">0</div></div>
-            
             <div class="app-card" onclick="app.open('teach')"><i class="fas fa-chalkboard-user" style="color:#14b8a6"></i><span>Teachers</span></div>
         </div>
 
         <div id="admin-zone" class="admin-zone">
             <div class="admin-head"><i class="fas fa-shield-alt"></i> Admin Panel</div>
             <div class="admin-grid">
-                <div class="admin-btn" onclick="app.modal('Manage Schedule',[{id:'type',label:'Type (Event or Exam)'},{id:'t',label:'Title'},{id:'d',label:'Date'}],(v)=>app.addSchedule(v))"><i class="fas fa-calendar-plus"></i><span>Schedule</span></div>
+                <div class="admin-btn" onclick="app.modal('Manage Schedule',[{id:'type',label:'Type (Event or Exam)'},{id:'t',label:'Title'},{id:'d',label:'Date'}],(v)=>app.addSchedule(v))"><i class="fas fa-calendar-plus" style="color:var(--accent);"></i><span>Schedule</span></div>
                 <div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check" style="color:var(--success)"></i><span>Mark Attendance</span></div>
                 <div class="admin-btn" onclick="app.openBan()"><i class="fas fa-users-cog" style="color:var(--warning)"></i><span>Users / VIP</span></div>
             </div>
@@ -132,7 +135,7 @@
         </div>
 
         <div id="schedule-board" class="glass" style="padding:15px; display:flex; gap:15px; align-items:center; margin-bottom:30px;">
-            <span id="schedule-badge" style="font-weight:800; font-size:0.75rem; padding:4px 8px; border-radius:6px; letter-spacing:1px;">SCHEDULE</span>
+            <span id="schedule-badge" style="font-weight:800; font-size:0.75rem; padding:4px 8px; border-radius:6px; letter-spacing:1px; background:var(--text-muted); color:black;">SCHEDULE</span>
             <span id="schedule-text" style="font-size:0.95rem; font-weight:600; color:white;">No Upcoming Schedule</span>
             <i class="fas fa-trash del-icon" id="schedule-del-btn" style="margin-left:auto; display:none;" onclick="app.delSchedule()"></i>
         </div>
@@ -151,4 +154,5 @@
 
     <script type="module" src="script.js"></script>
 </body>
-</html>
+    </html>
+    
