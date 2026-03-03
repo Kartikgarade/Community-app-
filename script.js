@@ -9,8 +9,7 @@ const db = getFirestore(appFire);
 const messaging = getMessaging(appFire);
 
 // --- GLOBAL VARIABLES ---
-const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Chinmay","deep","Siddharth","Rudransh","Guest"];
-const SUBS = ["Hindi","Sanskrit","Marathi","English","Maths","Physics","Chemistry","Biology","History","Civics","Geography","Economics","IT"];
+const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Guest"];
 const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole"];
 
 const getLocalDate = () => {
@@ -34,7 +33,7 @@ window.app = {
         t.className = 'toast';
         t.innerHTML = `<i class="fas ${icon} toast-icon"></i> <span>${msg}</span>`;
         c.appendChild(t);
-        setTimeout(() => t.remove(), 3000);
+        setTimeout(() => t.remove(), 4000);
     },
 
     popup: (msg, type='alert', cb=null) => {
@@ -56,16 +55,21 @@ window.app = {
         p.style.display = 'flex';
     },
 
-    // --- LOGIN & NATIVE PUSH PERMISSIONS ---
+    // --- LOGIN & PROPER NATIVE PUSH PERMISSIONS ---
     requestPushPermission: async (username) => {
         try {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
-                // IMPORTANT: Replace this placeholder with your actual VAPID key from Firebase Console
-                const token = await getToken(messaging, { vapidKey: 'YOUR_VAPID_KEY_HERE' }); 
-                if(token) await setDoc(doc(db, "push_tokens", username), { token: token }, { merge: true });
+            // Register Service Worker explicitly for Mobile Device Notification Bars
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    // ⚠️ REPLACE 'YOUR_VAPID_KEY_HERE' with your key from Firebase Console -> Project Settings -> Cloud Messaging
+                    const token = await getToken(messaging, { serviceWorkerRegistration: registration, vapidKey: 'YOUR_VAPID_KEY_HERE' }); 
+                    if(token) await setDoc(doc(db, "push_tokens", username), { token: token, lastUpdated: Date.now() }, { merge: true });
+                }
             }
-        } catch (error) { console.error("Push permission failed:", error); }
+        } catch (error) { console.warn("Native Push setup issue (Ensure HTTPS and VAPID key):", error); }
     },
 
     login: async () => {
@@ -91,6 +95,7 @@ window.app = {
         state.user = user; state.loginTime = Date.now();
         if(is_admin) state.admin = true;
         
+        // Trigger the native notification permission
         app.requestPushPermission(user);
 
         document.getElementById('loader-overlay').style.display='flex';
@@ -110,6 +115,7 @@ window.app = {
 
     // --- REALTIME DATABASE LISTENERS ---
     listen: () => {
+        // Profiles
         onSnapshot(collection(db, "profiles"), (s) => {
             s.forEach(d => { state.profiles[d.id] = d.data().img; });
             if(state.profiles[state.user]) document.getElementById('u-img').src = state.profiles[state.user];
@@ -133,11 +139,33 @@ window.app = {
             }
         });
 
-        // Global Chat Listener
+        // Global Chat & "Seen By" Logic
         onSnapshot(query(collection(db,"chats"), orderBy("time","asc")), (s)=>{
             state.chats = []; 
-            s.forEach(d => { const msg = {id: d.id, ...d.data()}; if(!msg.deletedBy || !msg.deletedBy.includes(state.user)) state.chats.push(msg); });
+            s.forEach(d => { 
+                const msg = {id: d.id, ...d.data()}; 
+                if(!msg.deletedBy || !msg.deletedBy.includes(state.user)) state.chats.push(msg); 
+                
+                // Mark unseen messages as seen by this user
+                if(state.modalType === 'chat' && msg.user !== state.user && (!msg.seenBy || !msg.seenBy.includes(state.user))) {
+                    updateDoc(doc(db, "chats", msg.id), { seenBy: arrayUnion(state.user) }).catch(()=>{});
+                }
+            });
             if(document.getElementById('chat-feed') && state.modalType === 'chat') app.renderChat();
+        });
+
+        // Typing Indicator Listener
+        onSnapshot(doc(db, "settings", "typing"), (snap) => {
+            const typingWrap = document.getElementById('typing-wrap');
+            if(snap.exists() && typingWrap && state.modalType === 'chat') {
+                const users = (snap.data().users || []).filter(u => u !== state.user);
+                if(users.length > 0) {
+                    typingWrap.style.display = 'flex';
+                    document.getElementById('typing-text').innerText = `${users.join(', ')} is typing...`;
+                } else {
+                    typingWrap.style.display = 'none';
+                }
+            }
         });
 
         // Direct Messages Listener
@@ -150,8 +178,10 @@ window.app = {
                 if(msg.receiver === state.user && !msg.seen) unreadCount++;
             });
             const badge = document.getElementById('badge-msg');
-            if(unreadCount > 0) { badge.innerText = unreadCount; badge.classList.remove('hidden'); } 
-            else { badge.classList.add('hidden'); }
+            if(badge) {
+                if(unreadCount > 0) { badge.innerText = unreadCount; badge.classList.remove('hidden'); } 
+                else { badge.classList.add('hidden'); }
+            }
             
             if(state.modalType === 'messages') {
                 if(state.activeMsgUser) app.renderDirectMessages();
@@ -175,9 +205,10 @@ window.app = {
         onSnapshot(collection(db,"attendance_log"), (s)=>{
             s.forEach(d => { state.attn[d.id] = d.data(); });
             const today = getLocalDate();
-            if(state.attn[today] && state.attn[today][state.user]) {
+            const statusEl = document.getElementById('my-att-status');
+            if(statusEl && state.attn[today] && state.attn[today][state.user]) {
                 const statusStr = state.attn[today][state.user];
-                document.getElementById('my-att-status').innerHTML = `Status: <b style="color:${statusStr==='P'?'#10b981':'#ef4444'}">${statusStr}</b>`;
+                statusEl.innerHTML = `Status: <b style="color:${statusStr==='P'?'#10b981':'#ef4444'}">${statusStr}</b>`;
             }
             app.renderCal();
             if(state.modalType === 'attendance') app.renderAttendanceDash(document.getElementById('f-body'));
@@ -189,6 +220,9 @@ window.app = {
         onSnapshot(collection(db,"teachers"), (s)=>{ state.teachers=[]; s.forEach(d=>state.teachers.push({id:d.id,...d.data()})); if(document.getElementById('teach-list')) app.renderTeachers(); });
         onSnapshot(collection(db,"resources"), (s)=>{ state.resources=[]; s.forEach(d=>state.resources.push({id:d.id,...d.data()})); if(state.currentChapter) app.openChapter(state.modalType, state.currentSubject, state.currentChapter); });
     },
+
+    // --- PROFILE PICTURE UPDATING ---
+    uploadAvatar: () => document.getElementById('avatar-input').click(),
 
     // --- UNIFIED SCHEDULE BOARD ---
     addSchedule: async (v) => {
@@ -208,6 +242,7 @@ window.app = {
         const badge = document.getElementById('schedule-badge');
         const txt = document.getElementById('schedule-text');
         const delBtn = document.getElementById('schedule-del-btn');
+        if(!board) return;
         
         if(next) {
             board.className = next.isExam ? 'glass board-exam' : 'glass board-event';
@@ -247,7 +282,8 @@ window.app = {
         }
     },
     renderCal: () => {
-        const d = new Date(); document.getElementById('cal-month').innerText = d.toLocaleString('default',{month:'long'});
+        const calMonth = document.getElementById('cal-month'); if(!calMonth) return;
+        const d = new Date(); calMonth.innerText = d.toLocaleString('default',{month:'long'});
         const g = document.getElementById('cal-grid'); g.innerHTML='';
         const year = d.getFullYear(), month = d.getMonth(), days = new Date(year, month + 1, 0).getDate(), start = new Date(year, month, 1).getDay();
         for(let i=0; i<start; i++) g.innerHTML += `<div></div>`;
@@ -288,7 +324,20 @@ window.app = {
         else if(t==='homework') app.renderHomework();
         else if(t==='messages') app.renderMessagesMenu();
         else if(t==='chat'){
-            b.innerHTML = `<div class="chat-wrap"><div id="chat-feed" class="chat-feed"></div><div id="reply-bar" class="reply-preview" style="display:none"><span>Replying...</span><i class="fas fa-times" onclick="app.cancelReply()"></i></div><div class="chat-bar"><label><i class="fas fa-paperclip" style="color:#aaa;cursor:pointer;font-size:1.2rem;margin-right:10px;"></i><input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm" onchange="app.sendFile(event,'chat')"></label><input id="c-in" class="chat-in" placeholder="Message Global Chat..."><i class="fas fa-paper-plane" style="color:var(--accent);cursor:pointer;font-size:1.2rem;" onclick="app.sendChat()"></i></div></div>`;
+            b.innerHTML = `
+            <div class="chat-wrap">
+                <div id="chat-feed" class="chat-feed"></div>
+                <div id="typing-wrap" class="typing-wrap" style="display:none; position:absolute; bottom:80px;">
+                    <div class="typing-indicator"><span></span><span></span><span></span></div>
+                    <span id="typing-text" class="typing-text"></span>
+                </div>
+                <div id="reply-bar" class="reply-preview" style="display:none"><span>Replying...</span><i class="fas fa-times" onclick="app.cancelReply()"></i></div>
+                <div class="chat-bar">
+                    <label><i class="fas fa-paperclip" style="color:#aaa;cursor:pointer;font-size:1.2rem;margin-right:10px;"></i><input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm" onchange="app.sendFile(event,'chat')"></label>
+                    <input id="c-in" class="chat-in" placeholder="Message Global Chat..." oninput="app.startTyping()">
+                    <i class="fas fa-paper-plane" style="color:var(--accent);cursor:pointer;font-size:1.2rem;" onclick="app.sendChat()"></i>
+                </div>
+            </div>`;
             app.renderChat();
         } 
         else if(t==='timetable'){ b.innerHTML = `<div class="tt-wrapper"><div class="tt-grid" id="tt-grid"></div></div>`; if(state.admin) b.innerHTML += `<div style="display:flex;gap:10px;margin-top:10px"><button class="btn" style="flex:1;background:#333;color:white;padding:12px;" onclick="app.modal('Add Row',[{id:'t',label:'Time'}],v=>app.addTTRow(v[0]))">+ Row</button><button class="btn" style="flex:2;background:var(--primary);color:white;padding:12px;" onclick="app.saveTT()">Save Changes</button></div>`; app.renderTimeTable(); } 
@@ -304,9 +353,7 @@ window.app = {
     triggerHwUpload: () => document.getElementById('hw-file-input').click(),
 
     renderHomework: () => {
-        state.modalType = 'homework';
-        document.getElementById('f-title').innerText = "HOMEWORK";
-        document.getElementById('f-subtitle').innerText = "";
+        state.modalType = 'homework'; document.getElementById('f-title').innerText = "HOMEWORK"; document.getElementById('f-subtitle').innerText = "";
         const b = document.getElementById('f-body'); b.innerHTML = '';
 
         if(state.admin) {
@@ -327,10 +374,7 @@ window.app = {
                     <div class="hw-desc">${hw.desc}</div>
                 </div>
                 <div class="hw-actions">
-                    <div class="hw-btns">
-                        <div class="hw-btn"><i class="fas fa-share-alt"></i></div>
-                        <div class="hw-btn" style="color:var(--danger)"><i class="fas fa-paperclip"></i>${hasImgs ? `<div class="hw-badge">${hw.images.length}</div>` : ''}</div>
-                    </div>
+                    <div class="hw-btns"><div class="hw-btn"><i class="fas fa-share-alt"></i></div><div class="hw-btn" style="color:var(--danger)"><i class="fas fa-paperclip"></i>${hasImgs ? `<div class="hw-badge">${hw.images.length}</div>` : ''}</div></div>
                     <div class="hw-uploader">uploaded by<span>${hw.uploader}</span></div>
                 </div>
                 ${state.admin ? `<i class="fas fa-trash del-icon" style="position:absolute; bottom:10px; right:10px; font-size:1rem;" onclick="event.stopPropagation(); app.delItem('homework','${hw.id}')"></i>` : ''}
@@ -346,29 +390,17 @@ window.app = {
 
     viewHomework: (id) => {
         const hw = state.homework.find(h => h.id === id); if(!hw) return;
-        state.modalType = 'homework-detail';
-        document.getElementById('f-title').innerText = "Assignment Detail";
+        state.modalType = 'homework-detail'; document.getElementById('f-title').innerText = "Assignment Detail";
         const b = document.getElementById('f-body');
         
         let imgHtml = '';
         if(hw.images && hw.images.length > 0) {
             imgHtml = `<div class="hw-attach-title">Attachment (${hw.images.length})</div><div class="hw-attach-grid">`;
-            hw.images.forEach((img, idx) => {
-                imgHtml += `<div class="hw-attach-card" onclick="app.viewMedia('${img}', 'image')"><img src="${img}" class="hw-attach-img"><a href="${img}" download="hw_attach_${idx}.jpg" class="hw-attach-dl" onclick="event.stopPropagation()"><i class="fas fa-arrow-down"></i></a></div>`;
-            });
+            hw.images.forEach((img, idx) => { imgHtml += `<div class="hw-attach-card" onclick="app.viewMedia('${img}', 'image')"><img src="${img}" class="hw-attach-img"><a href="${img}" download="hw_attach_${idx}.jpg" class="hw-attach-dl" onclick="event.stopPropagation()"><i class="fas fa-arrow-down"></i></a></div>`; });
             imgHtml += `</div>`;
         }
 
-        b.innerHTML = `
-        <div class="hw-detail-container">
-            <div class="hw-detail-head"><div class="hw-icon-wrap" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-book-open"></i></div><h2>${hw.sub}</h2></div>
-            <div class="hw-detail-date-label">Schedule Date</div>
-            <div class="hw-detail-date">${hw.date}</div>
-            <div class="hw-divider"></div>
-            <div class="hw-detail-title">${hw.title}</div>
-            <div class="hw-detail-desc">${hw.desc}</div>
-            ${imgHtml}
-        </div>`;
+        b.innerHTML = `<div class="hw-detail-container"><div class="hw-detail-head"><div class="hw-icon-wrap" style="width:40px;height:40px;font-size:1rem;"><i class="fas fa-book-open"></i></div><h2>${hw.sub}</h2></div><div class="hw-detail-date-label">Schedule Date</div><div class="hw-detail-date">${hw.date}</div><div class="hw-divider"></div><div class="hw-detail-title">${hw.title}</div><div class="hw-detail-desc">${hw.desc}</div>${imgHtml}</div>`;
     },
 
     // --- ✉️ ADMIN-USER DIRECT MESSAGES ---
@@ -389,14 +421,11 @@ window.app = {
                     ${unread > 0 ? `<div style="background:var(--danger);color:white;padding:5px 12px;border-radius:12px;font-weight:800;font-size:0.8rem;box-shadow:0 0 10px rgba(239,68,68,0.5);">${unread} New</div>` : ''}
                 </div>`;
             });
-        } else {
-            app.openDirectChat('admin');
-        }
+        } else { app.openDirectChat('admin'); }
     },
 
     openDirectChat: (targetUser) => {
-        state.activeMsgUser = targetUser;
-        document.getElementById('f-title').innerText = `Chat: ${targetUser}`;
+        state.activeMsgUser = targetUser; document.getElementById('f-title').innerText = `Chat: ${targetUser}`;
         const b = document.getElementById('f-body');
         b.innerHTML = `
         <div class="chat-wrap" style="background:transparent; box-shadow:none;">
@@ -413,23 +442,11 @@ window.app = {
     renderDirectMessages: () => {
         const c = document.getElementById('dm-feed'); if(!c || !state.activeMsgUser) return;
         c.innerHTML = '';
-        
-        const myDMs = state.messages.filter(m => 
-            (m.sender === state.user && m.receiver === state.activeMsgUser) || 
-            (m.sender === state.activeMsgUser && m.receiver === state.user)
-        );
-
+        const myDMs = state.messages.filter(m => (m.sender === state.user && m.receiver === state.activeMsgUser) || (m.sender === state.activeMsgUser && m.receiver === state.user));
         myDMs.forEach(m => {
             const mine = m.sender === state.user;
             if(!mine && !m.seen) updateDoc(doc(db,"messages",m.id), {seen: true}); 
-            
-            c.innerHTML += `
-            <div class="msg-row ${mine?'mine':''}">
-                <div class="msg ${mine?'mine':'theirs'}" style="max-width:85%; font-size:0.95rem;">
-                    ${m.img?`<img src="${m.img}" class="msg-img" onclick="app.viewMedia('${m.img}','image')">`:''}
-                    ${m.text}
-                </div>
-            </div>`;
+            c.innerHTML += `<div class="msg-row ${mine?'mine':''}"><div class="msg ${mine?'mine':'theirs'}" style="max-width:85%; font-size:0.95rem;">${m.img?`<img src="${m.img}" class="msg-img" onclick="app.viewMedia('${m.img}','image')">`:''}${m.text}</div></div>`;
         });
         c.scrollTop = c.scrollHeight;
     },
@@ -442,16 +459,22 @@ window.app = {
         }
     },
 
-    // --- GLOBAL CHAT & FILES ---
+    // --- GLOBAL CHAT, TYPING & ADMIN DELETE POWERS ---
+    startTyping: () => {
+        updateDoc(doc(db, "settings", "typing"), { users: arrayUnion(state.user) }).catch(()=>{});
+        clearTimeout(state.typingTimeout);
+        state.typingTimeout = setTimeout(() => { updateDoc(doc(db, "settings", "typing"), { users: arrayRemove(state.user) }).catch(()=>{}); }, 2000);
+    },
+    stopTyping: () => { clearTimeout(state.typingTimeout); updateDoc(doc(db, "settings", "typing"), { users: arrayRemove(state.user) }).catch(()=>{}); },
+
     sendChat: async () => {
         const v = document.getElementById('c-in').value;
         if(v && BAD_WORDS.some(w => v.toLowerCase().includes(w))) {
-            await setDoc(doc(db, "settings", "banned"), { list: [...state.banned, state.user], vips: state.vips });
-            return;
+            await setDoc(doc(db, "settings", "banned"), { list: [...state.banned, state.user], vips: state.vips }); return;
         }
         if(v || state.file){
-            await addDoc(collection(db,"chats"), { user:state.user, text:v, img:state.file, time:Date.now(), replyTo: state.replyingTo ? `${state.replyingTo.user}: ${state.replyingTo.text}` : null, deletedBy: [] });
-            document.getElementById('c-in').value = ''; state.file = null; app.cancelReply();
+            await addDoc(collection(db,"chats"), { user:state.user, text:v, img:state.file, time:Date.now(), replyTo: state.replyingTo ? `${state.replyingTo.user}: ${state.replyingTo.text}` : null, deletedBy: [], seenBy: [state.user] });
+            document.getElementById('c-in').value = ''; state.file = null; app.cancelReply(); app.stopTyping();
         }
     },
 
@@ -465,16 +488,41 @@ window.app = {
                 if(m.img.startsWith('data:video')) mediaHtml = `<video src="${m.img}" class="msg-vid" onclick="event.stopPropagation();app.viewMedia('${m.img}', 'video')"></video>`;
                 else mediaHtml = `<img src="${m.img}" class="msg-img" onclick="event.stopPropagation();app.viewMedia('${m.img}', 'image')">`;
             }
-            c.innerHTML += `<div class="msg-row ${mine?'mine':''}">${!mine ? `<img src="${pic}" class="chat-pfp">` : ''}<div class="msg ${mine?'mine':'theirs'}" onclick="app.msgOpt('${m.id}', '${m.user}', '${m.text}')"><b>${m.user}</b> ${isAdmin?'<span class="admin-tag">ADMIN</span>':(isVip?'<span class="vip-tag">VIP</span>':'')}<br>${m.replyTo ? `<div class="quoted-msg"><b>Replying to:</b><br>${m.replyTo}</div>` : ''}${mediaHtml}${m.text}<div style="text-align:right;font-size:0.6rem;opacity:0.7;margin-top:5px">${new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div></div>${mine ? `<img src="${pic}" class="chat-pfp">` : ''}</div>`;
+            c.innerHTML += `<div class="msg-row ${mine?'mine':''}">${!mine ? `<img src="${pic}" class="chat-pfp">` : ''}<div class="msg ${mine?'mine':'theirs'}" onclick="app.msgOpt('${m.id}', '${m.user}', '${m.text.replace(/'/g,"\\'")}')"><b>${m.user}</b> ${isAdmin?'<span class="admin-tag">ADMIN</span>':(isVip?'<span class="vip-tag">VIP</span>':'')}<br>${m.replyTo ? `<div class="quoted-msg"><b>Replying to:</b><br>${m.replyTo}</div>` : ''}${mediaHtml}${m.text}<div style="text-align:right;font-size:0.6rem;opacity:0.7;margin-top:5px">${new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div></div>${mine ? `<img src="${pic}" class="chat-pfp">` : ''}</div>`;
         });
         c.scrollTop = c.scrollHeight;
     },
 
-    msgOpt: (id, user, text) => { state.selectedMsg = {id, user, text}; document.getElementById('msg-options').style.display = 'flex'; },
+    msgOpt: (id, user, text) => { 
+        state.selectedMsg = {id, user, text}; 
+        const canDelAll = state.admin || user === state.user;
+        document.getElementById('btn-msg-del-everyone').style.display = canDelAll ? 'flex' : 'none';
+        document.getElementById('msg-options').style.display = 'flex'; 
+    },
+    
+    // Info Seen By Pop-Up logic
+    showInfo: async () => {
+        document.getElementById('msg-options').style.display = 'none';
+        const msgDoc = await getDoc(doc(db, "chats", state.selectedMsg.id));
+        const seen = msgDoc.exists() ? (msgDoc.data().seenBy || []) : [];
+        const seenList = seen.filter(u => u !== state.selectedMsg.user);
+        app.popup(`👀 Seen by:\n\n${seenList.length > 0 ? seenList.join('\n') : "Nobody yet"}`);
+    },
+
     doReply: () => { state.replyingTo = state.selectedMsg; document.getElementById('msg-options').style.display = 'none'; const bar = document.getElementById('reply-bar'); if(bar) { bar.style.display = 'flex'; bar.querySelector('span').innerText = `Replying to ${state.replyingTo.user}...`; } },
     cancelReply: () => { state.replyingTo = null; document.getElementById('reply-bar').style.display = 'none'; },
-    doDelMsg: async (mode) => { if(mode==='everyone') await deleteDoc(doc(db,"chats",state.selectedMsg.id)); else await updateDoc(doc(db,"chats",state.selectedMsg.id), {deletedBy: arrayUnion(state.user)}); document.getElementById('msg-options').style.display='none'; },
+    
+    // Delete Logic (For Everyone vs For Me)
+    doDelMsg: async (mode) => { 
+        document.getElementById('msg-options').style.display='none';
+        if(mode==='everyone') {
+            app.popup("Delete for everyone?", 'confirm', async () => await deleteDoc(doc(db,"chats",state.selectedMsg.id)));
+        } else {
+            await updateDoc(doc(db,"chats",state.selectedMsg.id), {deletedBy: arrayUnion(state.user)}); 
+        }
+    },
 
+    // --- UTILS & MEDIA COMPRESSION ---
     compressImage: (file, callback) => {
         const reader = new FileReader(); reader.readAsDataURL(file);
         reader.onload = (event) => {
@@ -488,128 +536,45 @@ window.app = {
         }
     },
 
-    sendFile: (e, target) => {
-        const f = e.target.files[0]; if(!f) return;
-        app.compressImage(f, (base64) => { state.file = base64; if(target==='chat') app.sendChat(); else app.sendDM(); });
-    },
-    
+    sendFile: (e, target) => { const f = e.target.files[0]; if(!f) return; app.compressImage(f, (base64) => { state.file = base64; if(target==='chat') app.sendChat(); else app.sendDM(); }); },
     handleFile: (e) => { const f = e.target.files[0]; if(f) { app.compressImage(f, (base64) => { state.file = base64; app.popup("Image Attached!"); }); } },
 
     // --- LMS FOLDERS (Notes & Papers) ---
-    addFolder: async (type, name) => {
-        if(!name) return; let s = { ...state.structure }; if(!s[type]) s[type] = {}; if(!s[type][name]) s[type][name] = [];
-        await setDoc(doc(db, "settings", "structure"), s); app.popup("Folder Created!"); app.open(type);
-    },
+    addFolder: async (type, name) => { if(!name) return; let s = { ...state.structure }; if(!s[type]) s[type] = {}; if(!s[type][name]) s[type][name] = []; await setDoc(doc(db, "settings", "structure"), s); app.popup("Folder Created!"); app.open(type); },
     delFolder: (type, name) => { app.popup(`Delete '${name}'?`, 'confirm', async () => { let s = { ...state.structure }; delete s[type][name]; await setDoc(doc(db, "settings", "structure"), s); app.open(type); }); },
     addChapter: async (type, folder, chapterName) => { if(!chapterName) return; let s = { ...state.structure }; if(!s[type][folder].includes(chapterName)) s[type][folder].push(chapterName); await setDoc(doc(db, "settings", "structure"), s); app.openSubject(type, folder); },
     delChapter: (type, folder, chapterName) => { let s = { ...state.structure }; s[type][folder] = s[type][folder].filter(c => c !== chapterName); setDoc(doc(db, "settings", "structure"), s); app.openSubject(type, folder); },
-    
-    openSubject: (type, folder) => {
-        state.currentSubject = folder; document.getElementById('f-subtitle').innerText = folder;
-        const b = document.getElementById('f-body'); let html = '<div style="padding-top:10px;">';
-        if(state.admin) html += `<button class="btn" style="width:100%;margin-bottom:20px;background:var(--primary);color:white;padding:15px;" onclick="app.modal('New Chapter',[{id:'c',label:'Chapter Name'}],v=>app.addChapter('${type}','${folder}',v[0]))">Create Chapter</button>`;
-        const chapters = (state.structure[type] || {})[folder] || [];
-        chapters.forEach(c => { html += `<div class="chapter-item" onclick="app.openChapter('${type}', '${folder}', '${c}')"><span class="chapter-title">${c}</span><div>${state.admin ? `<i class="fas fa-trash" style="color:var(--danger);margin-right:15px;" onclick="event.stopPropagation(); app.delChapter('${type}','${folder}','${c}')"></i>` : ''}<i class="fas fa-chevron-right chapter-arrow"></i></div></div>`; });
-        b.innerHTML = html + '</div>';
-    },
-
-    openChapter: (type, folder, chap) => {
-        state.currentChapter = chap; document.getElementById('f-subtitle').innerText = `${folder} > ${chap}`;
-        const b = document.getElementById('f-body'); b.innerHTML = '';
-        if(state.admin) b.innerHTML = `<button class="btn" style="width:100%;margin-bottom:20px;background:var(--success);color:black;padding:15px;" onclick="app.modal('Add to ${chap}',[{id:'t',label:'Title'},{id:'d',label:'Drive Link'},{id:'y',label:'YouTube URL'},{id:'b',label:'Book Link'}],v=>app.addRes('${type}','${folder}','${chap}',v))">Add Material</button>`;
-        const list = state.resources.filter(r => r.type === type && r.folder === folder && r.chap === chap);
-        list.forEach(r => {
-            let btns = '';
-            if(r.drive) btns += `<button class="res-btn res-btn-drive" onclick="window.open('${r.drive}')"><i class="fas fa-link"></i> Drive</button>`;
-            if(r.yt) btns += `<button class="res-btn res-btn-yt" onclick="app.viewYt('${app.getYtId(r.yt)}')"><i class="fab fa-youtube"></i> Video</button>`;
-            if(r.book) btns += `<button class="res-btn res-btn-book" onclick="window.open('${r.book}')"><i class="fas fa-book"></i> Book</button>`;
-            b.innerHTML += `<div class="resource-card"><div class="res-head"><span>${r.title}</span>${state.admin?`<i class="fas fa-trash del-icon" onclick="app.delItem('resources','${r.id}')"></i>`:''}</div><div class="res-actions">${btns}</div></div>`;
-        });
-    },
-
+    openSubject: (type, folder) => { state.currentSubject = folder; document.getElementById('f-subtitle').innerText = folder; const b = document.getElementById('f-body'); let html = '<div style="padding-top:10px;">'; if(state.admin) html += `<button class="btn" style="width:100%;margin-bottom:20px;background:var(--primary);color:white;padding:15px;" onclick="app.modal('New Chapter',[{id:'c',label:'Chapter Name'}],v=>app.addChapter('${type}','${folder}',v[0]))">Create Chapter</button>`; const chapters = (state.structure[type] || {})[folder] || []; chapters.forEach(c => { html += `<div class="chapter-item" onclick="app.openChapter('${type}', '${folder}', '${c}')"><span class="chapter-title">${c}</span><div>${state.admin ? `<i class="fas fa-trash" style="color:var(--danger);margin-right:15px;" onclick="event.stopPropagation(); app.delChapter('${type}','${folder}','${c}')"></i>` : ''}<i class="fas fa-chevron-right chapter-arrow"></i></div></div>`; }); b.innerHTML = html + '</div>'; },
+    openChapter: (type, folder, chap) => { state.currentChapter = chap; document.getElementById('f-subtitle').innerText = `${folder} > ${chap}`; const b = document.getElementById('f-body'); b.innerHTML = ''; if(state.admin) b.innerHTML = `<button class="btn" style="width:100%;margin-bottom:20px;background:var(--success);color:black;padding:15px;" onclick="app.modal('Add to ${chap}',[{id:'t',label:'Title'},{id:'d',label:'Drive Link'},{id:'y',label:'YouTube URL'},{id:'b',label:'Book Link'}],v=>app.addRes('${type}','${folder}','${chap}',v))">Add Material</button>`; const list = state.resources.filter(r => r.type === type && r.folder === folder && r.chap === chap); list.forEach(r => { let btns = ''; if(r.drive) btns += `<button class="res-btn res-btn-drive" onclick="window.open('${r.drive}')"><i class="fas fa-link"></i> Drive</button>`; if(r.yt) btns += `<button class="res-btn res-btn-yt" onclick="app.viewYt('${app.getYtId(r.yt)}')"><i class="fab fa-youtube"></i> Video</button>`; if(r.book) btns += `<button class="res-btn res-btn-book" onclick="window.open('${r.book}')"><i class="fas fa-book"></i> Book</button>`; b.innerHTML += `<div class="resource-card"><div class="res-head"><span>${r.title}</span>${state.admin?`<i class="fas fa-trash del-icon" onclick="app.delItem('resources','${r.id}')"></i>`:''}</div><div class="res-actions">${btns}</div></div>`; }); },
     addRes: async (type, folder, chap, v) => { await addDoc(collection(db,"resources"), { type, folder, chap, title:v[0], drive:v[1]||"", yt:v[2]||"", book:v[3]||"" }); app.popup("Material Added"); },
 
-    // --- UTILS & MEDIA ---
+    // --- MEDIA ---
     getYtId: (url) => { if(!url) return null; const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/); return (match && match[2].length === 11) ? match[2] : null; },
-    viewMedia: (src, type) => { 
-        document.getElementById('media-viewer').style.display='flex'; document.getElementById('media-download').href = src; document.getElementById('yt-container').style.display = 'none';
-        if(type === 'video') { document.getElementById('media-img').style.display = 'none'; document.getElementById('media-vid').style.display = 'block'; document.getElementById('media-vid').src = src; document.getElementById('media-vid').play(); } 
-        else { document.getElementById('media-vid').style.display = 'none'; document.getElementById('media-img').style.display = 'block'; document.getElementById('media-img').src = src; }
-    },
+    viewMedia: (src, type) => { document.getElementById('media-viewer').style.display='flex'; document.getElementById('media-download').href = src; document.getElementById('yt-container').style.display = 'none'; if(type === 'video') { document.getElementById('media-img').style.display = 'none'; document.getElementById('media-vid').style.display = 'block'; document.getElementById('media-vid').src = src; document.getElementById('media-vid').play(); } else { document.getElementById('media-vid').style.display = 'none'; document.getElementById('media-img').style.display = 'block'; document.getElementById('media-img').src = src; } },
     viewYt: (id) => { document.getElementById('media-viewer').style.display='flex'; document.getElementById('yt-container').style.display='block'; document.getElementById('media-iframe').src = `https://www.youtube.com/embed/${id}?autoplay=1`; },
     closeMedia: () => { document.getElementById('media-viewer').style.display='none'; document.getElementById('media-vid').pause(); document.getElementById('media-vid').src=''; document.getElementById('media-img').src=''; document.getElementById('media-iframe').src=''; document.getElementById('yt-container').style.display='none'; },
     delItem: (col,id) => app.popup("Delete?", 'confirm', async () => await deleteDoc(doc(db,col,id))),
-    delSchedule: () => app.popup("Remove Next Schedule?", 'confirm', () => {
-        const today = getLocalDate(); let upcoming = [];
-        state.events.forEach(e => { if (e.date >= today) upcoming.push({ ...e, isExam: false }); });
-        if (state.exam && state.exam.date >= today) upcoming.push({ title: state.exam.name, date: state.exam.date, isExam: true, id: 'EXAM' });
-        upcoming.sort((a, b) => a.date.localeCompare(b.date));
-        const next = upcoming[0];
-        if(next) { next.isExam ? deleteDoc(doc(db,"settings","exam")) : deleteDoc(doc(db,"events", next.id)); }
-    }),
 
     // --- TIMETABLE ---
-    renderTimeTable: () => {
-        const g = document.getElementById('tt-grid'); if(!g) return;
-        g.innerHTML = `<div class="tt-cell tt-head">Time</div>` + ["Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>`<div class="tt-cell tt-head">${d}</div>`).join('');
-        if(!state.tt.rows) state.tt.rows = ["08:00", "09:00", "10:00", "11:00", "12:00"];
-        state.tt.rows.forEach((t, i) => {
-            g.innerHTML += `<div class="tt-cell tt-time">${t} ${state.admin?`<i class="fas fa-trash tt-del-btn" onclick="app.delRow(${i})"></i>`:''}</div>`;
-            for(let j=0; j<6; j++){ const day = ["Mon","Tue","Wed","Thu","Fri","Sat"][j]; const val = (state.tt.data[t] && state.tt.data[t][day]) || ""; g.innerHTML += `<div class="tt-cell">${state.admin?`<input class="tt-input" onchange="app.upTT('${t}','${day}',this.value)" value="${val}">`:val}</div>`; }
-        });
-    },
+    renderTimeTable: () => { const g = document.getElementById('tt-grid'); if(!g) return; g.innerHTML = `<div class="tt-cell tt-head">Time</div>` + ["Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>`<div class="tt-cell tt-head">${d}</div>`).join(''); if(!state.tt.rows) state.tt.rows = ["08:00", "09:00", "10:00", "11:00", "12:00"]; state.tt.rows.forEach((t, i) => { g.innerHTML += `<div class="tt-cell tt-time">${t} ${state.admin?`<i class="fas fa-trash tt-del-btn" onclick="app.delRow(${i})"></i>`:''}</div>`; for(let j=0; j<6; j++){ const day = ["Mon","Tue","Wed","Thu","Fri","Sat"][j]; const val = (state.tt.data[t] && state.tt.data[t][day]) || ""; g.innerHTML += `<div class="tt-cell">${state.admin?`<input class="tt-input" onchange="app.upTT('${t}','${day}',this.value)" value="${val}">`:val}</div>`; } }); },
     upTT: (t,d,v) => { if(!state.tt.data[t]) state.tt.data[t]={}; state.tt.data[t][d]=v; },
     addTTRow: (t) => { if(t){ state.tt.rows.push(t); app.renderTimeTable(); } },
     delRow: (i) => { state.tt.rows.splice(i,1); app.renderTimeTable(); },
     saveTT: async () => { await setDoc(doc(db,"settings","timetable"), state.tt); app.popup("Saved!"); },
 
-    // --- ATTENDANCE & ADMIN ---
-    renderAttendanceDash: (b) => {
-        if(state.admin) {
-            let tP = 0, tA = 0, tL = 0;
-            USERS.forEach(u => { if(u !== "Guest" && u !== "admin") { let s = (state.attn[getLocalDate()]||{})[u]; if(s === 'P') tP++; else if(s === 'A') tA++; else if(s === 'H' || s === 'HD') tL++; } });
-            b.innerHTML = `<div class="attn-dash-wrap"><div class="master-stat-box"><h2>${tP}</h2><p>Students Present Today</p></div><div class="stat-grid"><div class="stat-card absent"><h3>${tA}</h3><p>Absent</p></div><div class="stat-card leave"><h3>${tL}</h3><p>Leave / HD</p></div></div></div>`;
-        } else {
-            let p=0, total=0; for(let d in state.attn){ if(state.attn[d][state.user]){ total++; if(state.attn[d][state.user]==='P') p++; } }
-            let pct = total > 0 ? Math.round((p/total)*100) : 0;
-            b.innerHTML = `<div class="attn-dash-wrap"><div class="progress-container"><div class="progress-ring" style="background: conic-gradient(var(--success) ${pct}%, #222 0%);"><div class="progress-val">${pct}%<span>Present</span></div></div></div></div>`;
-        }
-    },
-    
-    openAttn: () => {
-        const m=document.getElementById('feature-modal'); m.style.display='flex'; document.getElementById('f-title').innerText="MARK ATTENDANCE";
-        document.getElementById('f-body').innerHTML=`<div class="attn-date-bar"><span>Date:</span><input type="date" id="attn-date" onchange="app.changeDate(this.value)" style="background:none;border:none;color:white;font-family:inherit;font-size:1rem;outline:none;"></div><div id="attn-list"></div>`;
-        document.getElementById('attn-date').value = state.selectedDate; app.renderAdminAttn();
-    },
+    // --- ATTENDANCE DASHBOARDS ---
+    renderAttendanceDash: (b) => { if(state.admin) { let tP = 0, tA = 0, tL = 0; USERS.forEach(u => { if(u !== "Guest" && u !== "admin") { let s = (state.attn[getLocalDate()]||{})[u]; if(s === 'P') tP++; else if(s === 'A') tA++; else if(s === 'H' || s === 'HD') tL++; } }); b.innerHTML = `<div class="attn-dash-wrap"><div class="master-stat-box"><h2>${tP}</h2><p>Students Present Today</p></div><div class="stat-grid"><div class="stat-card absent"><h3>${tA}</h3><p>Absent</p></div><div class="stat-card leave"><h3>${tL}</h3><p>Leave / HD</p></div></div></div>`; } else { let p=0, total=0; for(let d in state.attn){ if(state.attn[d][state.user]){ total++; if(state.attn[d][state.user]==='P') p++; } } let pct = total > 0 ? Math.round((p/total)*100) : 0; b.innerHTML = `<div class="attn-dash-wrap"><div class="progress-container"><div class="progress-ring" style="background: conic-gradient(var(--success) ${pct}%, #222 0%);"><div class="progress-val">${pct}%<span>Present</span></div></div></div></div>`; } },
+    openAttn: () => { const m=document.getElementById('feature-modal'); m.style.display='flex'; document.getElementById('f-title').innerText="MARK ATTENDANCE"; document.getElementById('f-body').innerHTML=`<div class="attn-date-bar"><span>Date:</span><input type="date" id="attn-date" onchange="app.changeDate(this.value)" style="background:none;border:none;color:white;font-family:inherit;font-size:1rem;outline:none;"></div><div id="attn-list"></div>`; document.getElementById('attn-date').value = state.selectedDate; app.renderAdminAttn(); },
     changeDate: (v) => { state.selectedDate = v; app.renderAdminAttn(); },
-    renderAdminAttn: () => {
-        const c=document.getElementById('attn-list'); if(!c) return; c.innerHTML=''; const d = state.selectedDate; const data = state.attn[d] || {};
-        USERS.forEach(u=>{
-            if(u === 'admin' || u === 'Guest') return;
-            const s=data[u]; const pic = state.profiles[u] || `https://ui-avatars.com/api/?name=${u}&background=random`;
-            c.innerHTML+=`<div class="st-card"><div class="st-head"><img src="${pic}" class="st-face"> <span>${u}</span></div><div class="st-acts"><div class="act-btn ${s==='P'?'active-P':''}" onclick="app.mark('${d}','${u}','P')">P</div><div class="act-btn ${s==='A'?'active-A':''}" onclick="app.mark('${d}','${u}','A')">A</div><div class="act-btn ${s==='HD'?'active-HD':''}" onclick="app.mark('${d}','${u}','HD')">HD</div><div class="act-btn ${s==='H'?'active-H':''}" onclick="app.mark('${d}','${u}','H')">H</div></div></div>`;
-        });
-    },
+    renderAdminAttn: () => { const c=document.getElementById('attn-list'); if(!c) return; c.innerHTML=''; const d = state.selectedDate; const data = state.attn[d] || {}; USERS.forEach(u=>{ if(u === 'admin' || u === 'Guest') return; const s=data[u]; const pic = state.profiles[u] || `https://ui-avatars.com/api/?name=${u}&background=random`; c.innerHTML+=`<div class="st-card"><div class="st-head"><img src="${pic}" class="st-face"> <span>${u}</span></div><div class="st-acts"><div class="act-btn ${s==='P'?'active-P':''}" onclick="app.mark('${d}','${u}','P')">P</div><div class="act-btn ${s==='A'?'active-A':''}" onclick="app.mark('${d}','${u}','A')">A</div><div class="act-btn ${s==='HD'?'active-HD':''}" onclick="app.mark('${d}','${u}','HD')">HD</div><div class="act-btn ${s==='H'?'active-H':''}" onclick="app.mark('${d}','${u}','H')">H</div></div></div>`; }); },
     mark: async (d,u,s) => { const n = state.attn[d] || {}; n[u]=s; state.attn[d] = n; app.renderAdminAttn(); await setDoc(doc(db,"attendance_log",d),n); },
 
-    openBan: () => {
-        const m=document.getElementById('feature-modal'); m.style.display='flex'; document.getElementById('f-title').innerText="USERS & VIP"; const c=document.getElementById('f-body'); c.innerHTML='';
-        USERS.forEach(u=>{
-            if(u === 'admin' || u === 'Guest') return;
-            const b=state.banned.includes(u); const v=state.vips.includes(u);
-            c.innerHTML+=`<div class="list-card"><b style="color:white;font-size:1.1rem;">${u} ${v?'<span class="vip-tag">VIP</span>':''}</b><div style="display:flex;gap:8px"><button style="padding:8px 12px;background:var(--accent);color:black;border:none;border-radius:10px;font-weight:bold;cursor:pointer;" onclick="app.modal('Change Password',[{id:'p',label:'New Password'}], v=>app.resetPass('${u}',v[0]))"><i class="fas fa-key"></i></button><button style="padding:8px 12px;background:${v?'#ffd700':'#333'};color:${v?'#000':'#fff'};border:none;border-radius:10px;font-weight:bold;cursor:pointer;" onclick="app.toggleVIP('${u}')">VIP</button><button style="padding:8px 12px;background:${b?'var(--success)':'var(--danger)'};color:white;border:none;border-radius:10px;font-weight:bold;cursor:pointer;" onclick="app.toggleBan('${u}')">${b?'Unban':'Ban'}</button></div></div>`;
-        });
-    },
+    openBan: () => { const m=document.getElementById('feature-modal'); m.style.display='flex'; document.getElementById('f-title').innerText="USERS & VIP"; const c=document.getElementById('f-body'); c.innerHTML=''; USERS.forEach(u=>{ if(u === 'admin' || u === 'Guest') return; const b=state.banned.includes(u); const v=state.vips.includes(u); c.innerHTML+=`<div class="list-card"><b style="color:white;font-size:1.1rem;">${u} ${v?'<span class="vip-tag">VIP</span>':''}</b><div style="display:flex;gap:8px"><button style="padding:8px 12px;background:var(--accent);color:black;border:none;border-radius:10px;font-weight:bold;cursor:pointer;" onclick="app.modal('Change Password',[{id:'p',label:'New Password'}], v=>app.resetPass('${u}',v[0]))"><i class="fas fa-key"></i></button><button style="padding:8px 12px;background:${v?'#ffd700':'#333'};color:${v?'#000':'#fff'};border:none;border-radius:10px;font-weight:bold;cursor:pointer;" onclick="app.toggleVIP('${u}')">VIP</button><button style="padding:8px 12px;background:${b?'var(--success)':'var(--danger)'};color:white;border:none;border-radius:10px;font-weight:bold;cursor:pointer;" onclick="app.toggleBan('${u}')">${b?'Unban':'Ban'}</button></div></div>`; }); },
     resetPass: async (u, p) => { await setDoc(doc(db,"users",u),{password:p}); app.popup(`Password changed for ${u}!`); },
     toggleBan: async (u) => { let l=[...state.banned]; if(l.includes(u))l=l.filter(x=>x!==u); else l.push(u); await setDoc(doc(db,"settings","banned"),{list:l, vips:state.vips}); app.openBan(); },
     toggleVIP: async (u) => { let l=[...state.vips]; if(l.includes(u))l=l.filter(x=>x!==u); else l.push(u); await setDoc(doc(db,"settings","banned"),{list:state.banned, vips:l}); app.openBan(); },
 
-    modal: (t,i,cb) => {
-        document.getElementById('im-title').innerText=t; const c=document.getElementById('im-fields'); c.innerHTML='';
-        i.forEach(x=>{c.innerHTML+=`<input id="mi-${x.id}" class="modal-field" placeholder="${x.label}">`});
-        document.getElementById('input-modal').style.display='flex';
-        document.getElementById('im-save').onclick=()=>{ const v=i.map(x=>document.getElementById(`mi-${x.id}`).value); if(v[0]){ cb(v); document.getElementById('input-modal').style.display='none'; } else app.popup("Required field empty!"); };
-    },
+    modal: (t,i,cb) => { document.getElementById('im-title').innerText=t; const c=document.getElementById('im-fields'); c.innerHTML=''; i.forEach(x=>{c.innerHTML+=`<input id="mi-${x.id}" class="modal-field" placeholder="${x.label}">`}); document.getElementById('input-modal').style.display='flex'; document.getElementById('im-save').onclick=()=>{ const v=i.map(x=>document.getElementById(`mi-${x.id}`).value); if(v[0]){ cb(v); document.getElementById('input-modal').style.display='none'; } else app.popup("Required field empty!"); }; },
 
     renderAnn: () => { const c=document.getElementById('ann-feed'); if(!c) return; c.innerHTML=''; state.anns.forEach(a=>{ c.innerHTML+=`<div class="list-card" style="display:block;padding:25px;"><div><span style="color:var(--accent);font-weight:800;letter-spacing:1px;"><i class="fas fa-bullhorn"></i> ANNOUNCEMENT</span> <small style="float:right;color:#666">${new Date(a.time).toLocaleDateString()}</small></div><p style="margin-top:15px;color:white;line-height:1.5;">${a.text}</p>${a.img?`<img src="${a.img}" style="width:100%;border-radius:14px;margin-top:15px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;" onclick="app.viewMedia('${a.img}', 'image')">`:''}${state.admin?`<div style="margin-top:15px;text-align:right"><i class="fas fa-trash del-icon" onclick="app.delItem('announcements','${a.id}')"></i></div>`:''}</div>`; }); },
     postAnn: async () => { const v=document.getElementById('a-in').value; if(v || state.file){ await addDoc(collection(db,"announcements"),{text:v,img:state.file,time:Date.now()}); state.file=null; app.open('ann'); } },
@@ -618,8 +583,12 @@ window.app = {
 };
 
 // --- FILE UPLOADS LISTENERS ---
+// Triggers the Avatar Upload correctly 
 document.getElementById('avatar-input').addEventListener('change', e => {
-    if(e.target.files[0]) app.compressImage(e.target.files[0], async (base64) => { await setDoc(doc(db, "profiles", state.user), { img: base64 }); app.popup("Avatar Updated!"); });
+    if(e.target.files[0]) app.compressImage(e.target.files[0], async (base64) => { 
+        await setDoc(doc(db, "profiles", state.user), { img: base64 }); 
+        app.popup("Profile Picture Updated!"); 
+    });
 });
 
 document.getElementById('hw-file-input').addEventListener('change', async (e) => {
@@ -632,7 +601,7 @@ document.getElementById('hw-file-input').addEventListener('change', async (e) =>
     app.renderHomework(); 
 });
 
-// Native Notification Listener (Triggers when app is actively open)
+// Foreground Native Notification Listener (Triggers when app is actively open)
 onMessage(messaging, (payload) => { app.showToast(`${payload.notification.title}: ${payload.notification.body}`, 'fa-bell'); });
 
 // Real-time Clock Updates
