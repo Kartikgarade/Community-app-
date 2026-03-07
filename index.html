@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>All In One Community</title>
+    <title>All In One Community - Final Version</title>
     
     <link rel="manifest" href="manifest.json">
 
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -32,12 +33,45 @@
 
     <div id="msg-options" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
         <div class="msg-opt-box">
+            <button onclick="app.showReactions()"><i class="fas fa-smile-beam" style="color:#f59e0b; margin-right:8px;"></i> React to Message</button>
             <button onclick="app.doReply()"><i class="fas fa-reply" style="color:var(--accent); margin-right:8px;"></i> Reply</button>
             <button onclick="app.showInfo()"><i class="fas fa-eye" style="color:var(--success); margin-right:8px;"></i> Info (Seen By)</button>
             <button id="btn-msg-del-everyone" style="color:var(--danger)" onclick="app.doDelMsg('everyone')"><i class="fas fa-trash-alt" style="margin-right:8px;"></i> Delete for Everyone</button>
             <button id="btn-msg-del-me" style="color:var(--warning)" onclick="app.doDelMsg('me')"><i class="fas fa-eraser" style="margin-right:8px;"></i> Delete for Me</button>
             <button onclick="document.getElementById('msg-options').style.display='none'" style="text-align:center; color:#aaa; font-weight:bold;">Cancel</button>
         </div>
+    </div>
+
+    <div id="reaction-picker" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+        <div class="glass" style="padding:20px 30px; border-radius:40px; display:flex; gap:20px; font-size:2rem; box-shadow:0 20px 50px rgba(0,0,0,0.8);">
+            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('👍')">👍</span>
+            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('❤️')">❤️</span>
+            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('😂')">😂</span>
+            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('😮')">😮</span>
+            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('🙏')">🙏</span>
+        </div>
+    </div>
+
+    <div id="recording-overlay" style="display:none; position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(239,68,68,0.95); backdrop-filter:blur(15px); padding:12px 25px; border-radius:30px; color:white; font-weight:800; z-index:9000; align-items:center; gap:20px; box-shadow:0 10px 40px rgba(239,68,68,0.5); border:1px solid rgba(255,255,255,0.2);">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:12px; height:12px; background:white; border-radius:50%; animation:pulse 1s infinite alternate;"></div>
+            <span id="rec-time">0:00</span>
+        </div>
+        <div style="display:flex; gap:15px; border-left:1px solid rgba(255,255,255,0.3); padding-left:15px;">
+            <i class="fas fa-trash" style="font-size:1.2rem; cursor:pointer; color:#fca5a5;" onclick="app.stopRecording(false)" title="Cancel"></i>
+            <i class="fas fa-paper-plane" style="font-size:1.2rem; cursor:pointer; color:white;" onclick="app.stopRecording(true)" title="Send"></i>
+        </div>
+    </div>
+    <style>@keyframes pulse { 0% {transform:scale(1); opacity:1;} 100% {transform:scale(1.5); opacity:0.5;} }</style>
+
+    <div id="pomodoro-widget" class="glass" style="display:none; position:fixed; bottom:30px; right:20px; z-index:4000; padding:15px 20px; border-radius:24px; align-items:center; gap:15px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 20px 50px rgba(0,0,0,0.8);">
+        <i class="fas fa-stopwatch" style="color:#f43f5e; font-size:1.8rem;"></i>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+            <span id="pomo-time" style="font-size:1.4rem; font-weight:800; color:white; font-variant-numeric: tabular-nums;">25:00</span>
+            <span id="pomo-mode" style="font-size:0.7rem; color:#aaa; text-transform:uppercase; letter-spacing:1.5px; font-weight:700;">Focus</span>
+        </div>
+        <button onclick="app.togglePomodoro()" style="background:var(--primary-grad); border:none; color:white; width:45px; height:45px; border-radius:50%; cursor:pointer; box-shadow:0 5px 15px rgba(124,58,237,0.4); display:flex; align-items:center; justify-content:center;"><i id="pomo-icon" class="fas fa-play" style="font-size:1.1rem; margin-left:3px;"></i></button>
+        <i class="fas fa-times" onclick="document.getElementById('pomodoro-widget').style.display='none'" style="position:absolute; top:-10px; right:-10px; background:#333; color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; cursor:pointer; border:2px solid var(--bg);"></i>
     </div>
 
     <div id="loader-overlay" style="display:none; position:fixed; inset:0; background:#050505; z-index:9999; align-items:center; justify-content:center; flex-direction:column;">
@@ -47,9 +81,7 @@
     
     <input type="file" id="avatar-input" hidden accept="image/*">
     <input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm">
-    <input type="file" id="hw-file-input" hidden accept="image/*" multiple>
-
-    <div id="media-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:6000; align-items:center; justify-content:center; flex-direction:column;">
+    <input type="file" id="hw-file-input" hidden accept="image/*" multiple> <input type="file" id="ai-file-input" hidden accept="image/*"> <div id="media-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:6000; align-items:center; justify-content:center; flex-direction:column;">
         <span class="close-media" onclick="app.closeMedia()" style="position:absolute; top:20px; right:20px; color:white; font-size:2.5rem; cursor:pointer; z-index:6002;">&times;</span>
         <a id="media-download" href="#" download class="download-media" style="position:absolute; top:20px; left:20px; color:white; font-size:1.5rem; z-index:6002; background:rgba(255,255,255,0.2); padding:10px 12px; border-radius:50%; text-decoration:none;"><i class="fas fa-download"></i></a>
         
@@ -116,18 +148,23 @@
             <div class="app-card" onclick="app.open('timetable')"><i class="fas fa-calendar-alt" style="color:#ec4899"></i><span>Table</span></div>
             <div class="app-card" onclick="app.open('messages')"><i class="fas fa-envelope" style="color:#3b82f6"></i><span>Messages</span><div id="badge-msg" class="badge hidden">0</div></div>
             <div class="app-card" onclick="app.open('teach')"><i class="fas fa-chalkboard-user" style="color:#14b8a6"></i><span>Teachers</span></div>
+            <div class="app-card" onclick="app.open('ai-tutor')"><i class="fas fa-robot" style="color:#8b5cf6"></i><span>AI Tutor</span></div>
+            <div class="app-card" onclick="app.open('anonymous')"><i class="fas fa-user-secret" style="color:#64748b"></i><span>Ask Secret</span></div>
+            <div class="app-card" onclick="document.getElementById('pomodoro-widget').style.display='flex'"><i class="fas fa-stopwatch" style="color:#f43f5e"></i><span>Timer</span></div>
         </div>
 
         <div id="admin-zone" class="admin-zone">
             <div class="admin-head"><i class="fas fa-shield-alt"></i> Admin Panel</div>
-            <div class="admin-grid">
-                <div class="admin-btn" onclick="app.modal('Manage Schedule',[{id:'type',label:'Type (Event or Exam)'},{id:'t',label:'Title'},{id:'d',label:'Date'}],(v)=>app.addSchedule(v))"><i class="fas fa-calendar-plus" style="color:var(--accent);"></i><span>Schedule</span></div>
-                <div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check" style="color:var(--success)"></i><span>Mark Attendance</span></div>
-                <div class="admin-btn" onclick="app.openBan()"><i class="fas fa-users-cog" style="color:var(--warning)"></i><span>Users / VIP</span></div>
+            <div class="admin-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 12px;">
+                <div class="admin-btn" onclick="app.modal('Manage Schedule',[{id:'type',label:'Type (Event or Exam)'},{id:'t',label:'Title'},{id:'d',label:'Date (YYYY-MM-DD)'}],(v)=>app.addSchedule(v))"><i class="fas fa-calendar-plus" style="color:var(--accent);"></i><span>Schedule</span></div>
+                <div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check" style="color:var(--success);"></i><span>Mark Attendance</span></div>
+                <div class="admin-btn" onclick="app.openBan()"><i class="fas fa-users-cog" style="color:var(--warning);"></i><span>Users / VIP</span></div>
+                <div class="admin-btn" onclick="app.exportAttendanceCSV()"><i class="fas fa-file-excel" style="color:#10b981;"></i><span>Export CSV</span></div>
             </div>
+            <div class="admin-btn" id="admin-mute-btn" onclick="app.toggleChatMute()" style="width:100%; border-color:var(--danger); background:rgba(239,68,68,0.1); flex-direction:row;"><i class="fas fa-comment-slash" style="color:var(--danger);"></i><span style="color:var(--danger);">Mute Global Chat</span></div>
         </div>
 
-        <div class="section-title">SCHEDULE</div>
+        <div class="section-title">SCHEDULE & CALENDAR</div>
         <div class="cal-box">
             <div class="cal-header"><span id="cal-month">Month</span> <span id="clock" style="font-weight:400;color:#888">00:00</span></div>
             <div class="week-row"><div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div></div>
@@ -149,10 +186,10 @@
                 <span id="f-subtitle" style="font-size: 0.75rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;"></span>
             </div>
         </div>
-        <div id="f-body" style="flex:1; overflow-y:auto; padding:20px; scroll-behavior:smooth;"></div>
+        <div id="f-body" style="flex:1; overflow-y:auto; padding:0; scroll-behavior:smooth; display:flex; flex-direction:column;"></div>
     </div>
 
     <script type="module" src="script.js"></script>
 </body>
-    </html>
-    
+</html>
+
