@@ -11,7 +11,7 @@ const messaging = getMessaging(appFire);
 // 🤖 YOUR ACTIVE GEMINI API KEY 🤖
 const GEMINI_API_KEY = "AIzaSyBL3-3DvOEZBh0zjc4c_8yzmVg2fQ1usIc";
 
-const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Guest"];
+const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Rudransh","Siddharth","deep","Chinmay","Guest"];
 const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole"];
 
 const getLocalDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
