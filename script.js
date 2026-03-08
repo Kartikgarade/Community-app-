@@ -3,7 +3,7 @@ import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setD
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
 // --- CONFIGURATION ---
-const appConfig = { apiKey: "AIzaSyCtjsy_NUH3vNHbiXlGP4nUmusefzIuJyI", authDomain: "all-in-one-community.firebaseapp.com", projectId: "all-in-one-community", storageBucket: "all-in-one-community.firebasestorage.app", messagingSenderId: "461209960805", appId: "1:461209960805:web:6f73660513cf6d3c40e18c" };
+const appConfig = { apiKey: "AIzaSyAuQwGsQlQZ8TE5eLkKrvITDmkEXnWy5TY", authDomain: "all-in-one-community.firebaseapp.com", projectId: "all-in-one-community", storageBucket: "all-in-one-community.firebasestorage.app", messagingSenderId: "461209960805", appId: "1:461209960805:web:6f73660513cf6d3c40e18c" };
 const appFire = initializeApp(appConfig);
 const db = getFirestore(appFire);
 const messaging = getMessaging(appFire);
