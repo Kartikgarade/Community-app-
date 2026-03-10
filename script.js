@@ -9,7 +9,7 @@ const db = getFirestore(appFire);
 const messaging = getMessaging(appFire);
 
 // 🤖 YOUR ACTIVE GEMINI API KEY 🤖
-const GEMINI_API_KEY = "AIzaSyBvTSvPXS2s38zjr7oqN5sdu0d_xt6Aq2s";
+const GEMINI_API_KEY = "AIzaSyC5dRxvXShj3g890A4drL5W5JDRYGPhTfY";
 
 const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Rudransh","Siddharth","deep","Chinmay","Guest"];
 const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole"];
