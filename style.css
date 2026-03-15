@@ -22,19 +22,18 @@ html, body {
     --success: #10b981;
     --warning: #f59e0b;
     --vip: #ffd700;
+    --admin: #ff4500;
     --holiday: #d946ef; 
     
     --glass: rgba(255, 255, 255, 0.04);
     --border: rgba(255, 255, 255, 0.08);
     
-    /* Upgraded Apple-style spring animation curve */
     --smooth: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
     --fade: all 0.3s ease;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; }
 
-/* Custom Scrollbars */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; transition: var(--smooth); }
@@ -84,7 +83,6 @@ body {
 .btn-confirm { background: var(--primary-grad); color: white; box-shadow: 0 5px 15px rgba(124, 58, 237, 0.3); }
 .btn-danger { background: var(--danger); color: white; box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3); }
 
-/* MESSAGE OPTIONS BOX */
 .msg-opt-box { background: rgba(24, 24, 27, 0.95); backdrop-filter: blur(15px); width: 260px; border-radius: 20px; border: 1px solid #444; overflow: hidden; display: flex; flex-direction: column; animation: popIn 0.4s var(--smooth); box-shadow: 0 15px 40px rgba(0,0,0,0.8); }
 .msg-opt-box button { background: transparent; color: white; padding: 16px; border: none; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 1rem; cursor: pointer; text-align: left; transition: var(--fade); display: flex; align-items: center; }
 .msg-opt-box button i { width: 22px; text-align: center; transition: var(--smooth); }
@@ -143,10 +141,10 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 
 .badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; width: 22px; height: 22px; border-radius: 50%; font-size: 0.7rem; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.6); border: 2px solid var(--bg); animation: popIn 0.4s var(--smooth); }
 
-/* Card icon colors */
+/* Card icon colors - adjust as needed */
 .app-card:nth-child(1) i { color: #f472b6; } .app-card:nth-child(2) i { color: #22d3ee; } .app-card:nth-child(3) i { color: #a855f7; } 
 .app-card:nth-child(4) i { color: #10b981; } .app-card:nth-child(6) i { color: #f59e0b; } .app-card:nth-child(8) i { color: #3b82f6; }
-.app-card:nth-child(10) i { color: #8b5cf6; } .app-card:nth-child(11) i { color: #64748b; } .app-card:nth-child(12) i { color: #f43f5e; }
+.app-card:nth-child(10) i { color: #8b5cf6; } .app-card:nth-child(11) i { color: #10b981; } .app-card:nth-child(12) i { color: #f43f5e; }
 
 /* ==========================================================
    ADMIN ZONE
@@ -172,11 +170,9 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .day:hover { background: rgba(255,255,255,0.12); transform: scale(1.1); z-index: 2; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.1); }
 .day.today { border: 2px solid var(--primary); color: white; font-weight: 800; background: rgba(139, 92, 246, 0.2); box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); }
 
-/* Pink Holiday Theme */
 .day.holiday-cell { border: 1px solid var(--holiday); color: var(--holiday); font-weight: 800; background: rgba(217, 70, 239, 0.15); box-shadow: inset 0 0 10px rgba(217, 70, 239, 0.2); }
 .day.holiday-cell:active { background: rgba(217, 70, 239, 0.3); }
 
-/* Red Absent Date Theme */
 .day.absent-cell { border: 1px solid var(--danger); color: var(--danger); font-weight: 800; background: rgba(239, 68, 68, 0.15); box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.2); }
 .day.absent-cell:active { background: rgba(239, 68, 68, 0.3); }
 
@@ -188,7 +184,6 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .dot-e { background: var(--accent); }
 .dot-hol { background: var(--holiday); box-shadow: 0 0 5px var(--holiday); }
 
-/* Unified Dynamic Schedule Board */
 #schedule-board { border-radius: 20px; transition: var(--smooth); cursor: pointer; }
 #schedule-board:active { transform: scale(0.96); }
 .board-event { border-color: rgba(16, 185, 129, 0.4) !important; border-left: 4px solid var(--success) !important; background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(0,0,0,0)) !important; }
@@ -205,9 +200,10 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .download-media:hover { background: var(--primary); transform: translateY(-3px) scale(1.1); box-shadow: 0 8px 20px rgba(124, 58, 237, 0.6); border-color: transparent; }
 
 /* ==========================================================
-   📚 HOMEWORK / ASSIGNMENT CARDS
+   HOMEWORK / ASSIGNMENT CARDS WITH PROGRESS
    ========================================================== */
 .hw-card { background: #ffffff; border-radius: 20px; padding: 18px; margin-bottom: 16px; display: flex; gap: 15px; color: #1e293b; box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: popIn 0.4s var(--smooth); position: relative; cursor: pointer; transition: var(--smooth); border: 1px solid #e2e8f0; }
+.hw-card.completed { background: #f0fdf4; border: 2px solid var(--success); }
 .hw-card:active { transform: scale(0.96); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
 .hw-icon-wrap { width: 52px; height: 52px; background: #f8fafc; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #3b82f6; font-size: 1.3rem; flex-shrink: 0; border: 1px solid #e2e8f0; }
 .hw-content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -220,9 +216,11 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .hw-btns { display: flex; gap: 10px; }
 .hw-btn { width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 1rem; position: relative; transition: var(--smooth); }
 .hw-btn:active { background: #e2e8f0; transform: scale(0.9); }
+.hw-btn.complete { background: var(--success); color: white; }
 .hw-badge { position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; width: 18px; height: 18px; border-radius: 50%; font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid white; }
 .hw-uploader { font-size: 0.7rem; color: #64748b; text-align: right; margin-top: 8px; line-height: 1.2; }
 .hw-uploader span { color: #3b82f6; font-weight: 800; display: block; text-transform: uppercase; }
+.completion-date { font-size: 0.7rem; color: var(--success); font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
 
 .hw-detail-container { background: #f8fafc; border-radius: 28px; padding: 24px; color: #0f172a; min-height: 100%; box-shadow: inset 0 4px 15px rgba(0,0,0,0.05); }
 .hw-detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 25px; }
@@ -240,7 +238,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .hw-attach-dl { position: absolute; bottom: 8px; right: 8px; background: #3b82f6; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid white; }
 
 /* ==========================================================
-   💬 CHAT, AUDIO, EMOJI REACTIONS & GOOGLE MEET
+   CHAT, AUDIO, EMOJI REACTIONS & GOOGLE MEET
    ========================================================== */
 .chat-wrap { display: flex; flex-direction: column; height: 100%; position: relative; background: rgba(0,0,0,0.5); }
 .chat-feed { 
@@ -259,33 +257,32 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .msg.mine { background: linear-gradient(135deg, #7c3aed, #5b21b6); border-bottom-right-radius: 4px; box-shadow: 0 6px 20px rgba(124, 58, 237, 0.25); border: 1px solid rgba(124, 58, 237, 0.5); }
 .msg.theirs { background: rgba(51, 51, 51, 0.95); border-bottom-left-radius: 4px; }
 
-/* 🤖 AI Tutor & Anonymous Chat Bubbles */
-.msg.ai-bot { background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(0,0,0,0)); border: 1px solid var(--primary); border-bottom-left-radius: 4px; box-shadow: 0 0 15px rgba(124,58,237,0.2); }
-.ai-tag { color: var(--primary); font-size: 0.65rem; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--primary); padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; }
+.admin-tag { background: var(--admin); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; box-shadow: 0 0 10px var(--admin); }
+.vip-tag { background: var(--vip); color: black; font-size: 0.65rem; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; box-shadow: 0 0 10px var(--vip); }
+
+.msg.report-bot { background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(0,0,0,0)); border: 1px solid var(--danger); border-bottom-left-radius: 4px; }
+.report-tag { color: var(--danger); font-size: 0.65rem; background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; }
+
 .msg.anonymous { background: #1a1a1a; border: 1px dashed #555; border-bottom-left-radius: 4px; font-style: italic; color: #ccc; }
 .anon-tag { color: #888; font-size: 0.65rem; background: #333; border: 1px solid #555; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; }
 
 .msg-img, .msg-vid { max-width: 100%; border-radius: 12px; margin-bottom: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); transition: var(--smooth); }
 .msg-img:hover, .msg-vid:hover { filter: brightness(1.15); transform: scale(1.02); }
 
-/* 🎙️ Audio Message Player */
 .audio-player { height: 40px; border-radius: 20px; outline: none; margin-top: 5px; width: 220px; max-width: 100%; }
 .audio-player::-webkit-media-controls-panel { background-color: rgba(255,255,255,0.15); }
 .audio-player::-webkit-media-controls-current-time-display, .audio-player::-webkit-media-controls-time-remaining-display { color: white; text-shadow: none; }
 
-/* 😊 Emoji Reactions */
 #reaction-picker span:hover { transform: scale(1.3) translateY(-5px); }
 .reaction-container { display: flex; flex-wrap: wrap; gap: 4px; position: absolute; bottom: -12px; right: 10px; z-index: 2; }
 .reaction-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(30,30,35,0.95); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 2px 8px; font-size: 0.8rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; transition: var(--smooth); font-weight: bold; }
 .reaction-badge:hover { transform: scale(1.15); background: #333; border-color: var(--accent); }
 
-/* 🔵 Google Meet Calling Card */
 .zoom-card { background: rgba(26, 115, 232, 0.1); border: 1px solid rgba(26, 115, 232, 0.4); border-radius: 16px; padding: 16px; margin-top: 8px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.15); }
 .zoom-header { display: flex; align-items: center; gap: 8px; color: #60a5fa; font-weight: 800; font-size: 1.1rem; }
 .zoom-btn { background: #1a73e8; color: white; border: none; padding: 10px 15px; border-radius: 10px; font-weight: 700; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; transition: var(--smooth); cursor: pointer; }
 .zoom-btn:active { transform: scale(0.95); filter: brightness(1.2); }
 
-/* Chat Inputs & UI */
 .quoted-msg { border-left: 4px solid var(--accent); background: rgba(0,0,0,0.4); padding: 10px; margin-bottom: 10px; border-radius: 8px; font-size: 0.85rem; opacity: 0.95; }
 .reply-preview { background: rgba(30, 30, 35, 0.95); backdrop-filter: blur(15px); padding: 14px 20px; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: space-between; align-items: center; color: var(--accent); font-size: 0.95rem; font-weight: 500; position: absolute; bottom: 85px; left: 15px; right: 15px; z-index: 5; box-shadow: 0 -10px 25px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-bottom: none; animation: popIn 0.3s var(--smooth); }
 .reply-preview i { cursor: pointer; color: white; transition: var(--smooth); padding: 5px; font-size: 1.2rem; }
@@ -298,7 +295,6 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .zoom-action { color: #1a73e8; cursor: pointer; transition: var(--smooth); } 
 .zoom-action:active { transform: scale(0.9); }
 
-/* Typing Indicator */
 .typing-wrap { display: flex; align-items: center; gap: 10px; margin-left: 10px; margin-bottom: 12px; animation: fadeIn 0.4s ease; }
 .typing-text { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
 .typing-indicator { background-color: rgba(39, 39, 42, 0.9); padding: 10px 16px; border-radius: 20px; border-bottom-left-radius: 4px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); }
@@ -309,7 +305,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 @keyframes smoothWave { 0%, 100% { transform: translateY(0); opacity: 0.5; background-color: #94a3b8; } 50% { transform: translateY(-6px) scale(1.2); opacity: 1; background-color: var(--primary); box-shadow: 0 0 10px var(--primary); } }
 
 /* ==========================================================
-   ✉️ NEW: FORMAL LETTER FORMAT (For Messages Tab)
+   FORMAL LETTER FORMAT
    ========================================================== */
 .letter-card {
     background: rgba(24, 24, 27, 0.95);
@@ -337,19 +333,12 @@ header { display: flex; justify-content: space-between; align-items: center; mar
     border-bottom: 1px solid rgba(255,255,255,0.05);
     padding-bottom: 10px;
 }
-.letter-subject {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: white;
-    margin-bottom: 12px;
-    line-height: 1.3;
-}
 .letter-body {
     font-size: 0.95rem;
     color: #ddd;
     line-height: 1.6;
     margin-bottom: 15px;
-    white-space: pre-wrap; /* Keeps formatting */
+    white-space: pre-wrap;
 }
 .letter-signature {
     font-size: 0.9rem;
@@ -379,7 +368,6 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .act-btn.active-HD { background: var(--warning); color: black; border-color: var(--warning); }
 .act-btn.active-H { background: var(--accent); color: black; border-color: var(--accent); }
 
-/* Student Dashboard */
 .attn-dash-wrap { display: flex; flex-direction: column; align-items: center; gap: 35px; padding-top: 20px; animation: popIn 0.5s var(--smooth); }
 .progress-container { position: relative; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: var(--glass); border-radius: 50%; box-shadow: 0 15px 50px rgba(16, 185, 129, 0.25); border: 1px solid rgba(16, 185, 129, 0.1); transition: var(--smooth); }
 .progress-container:hover { transform: scale(1.05); box-shadow: 0 20px 60px rgba(16, 185, 129, 0.35); }
@@ -395,10 +383,23 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .stat-card.leave h3 { color: var(--warning); text-shadow: 0 0 20px rgba(245, 158, 11, 0.4); }
 .stat-card p { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-top: 8px; }
 
-/* Admin Master View */
 .master-stat-box { background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(0,0,0,0)); border: 1px solid rgba(16, 185, 129, 0.3); padding: 25px; border-radius: 24px; width: 100%; margin-bottom: 20px; text-align: center; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.15); }
 .master-stat-box h2 { font-size: 3.5rem; color: var(--success); font-weight: 800; line-height: 1; margin-bottom: 5px; text-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
 .master-stat-box p { color: #ccc; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.9rem; }
+
+/* ==========================================================
+   SCHOOL WORK / ID CARD GRID
+   ========================================================== */
+.school-work-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 20px; }
+.school-work-card { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 20px; text-align: center; cursor: pointer; transition: var(--smooth); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.school-work-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 15px 30px rgba(6, 182, 212, 0.2); }
+.school-work-card i { font-size: 2rem; color: var(--accent); }
+.school-work-card.completed { background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(0,0,0,0)); border-color: var(--success); }
+.school-work-card.completed i { color: var(--success); }
+.school-work-title { font-weight: 700; font-size: 1.1rem; }
+.school-work-link { font-size: 0.8rem; color: var(--text-muted); word-break: break-all; cursor: pointer; }
+.school-work-link:hover { color: var(--accent); text-decoration: underline; }
+.completion-badge { font-size: 0.7rem; color: var(--success); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 5px; }
 
 /* ==========================================================
    TIME TABLE
@@ -444,7 +445,27 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .res-btn-book:hover { background: var(--primary); color: white; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(124, 58, 237, 0.4); }
 
 /* ==========================================================
-   🟢 RESPONSIVE DESKTOP UI
+   SWIPE ACTIONS FOR CHAT
+   ========================================================== */
+.swipe-container { position: relative; overflow: hidden; }
+.swipe-actions { position: absolute; top: 0; right: -100px; height: 100%; display: flex; align-items: center; gap: 10px; padding: 0 15px; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); border-left: 2px solid var(--accent); transition: right 0.3s ease; }
+.swipe-actions.active { right: 0; }
+.swipe-btn { background: none; border: none; color: white; font-size: 1.2rem; padding: 10px; cursor: pointer; border-radius: 50%; transition: var(--smooth); }
+.swipe-btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.1); }
+
+/* ==========================================================
+   PROGRESS DASHBOARD STYLES
+   ========================================================== */
+.progress-dashboard { padding: 20px; }
+.progress-stats { display: flex; flex-direction: column; gap: 25px; margin-bottom: 30px; }
+.stat-row { display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 15px; }
+.stat-icon { width: 50px; height: 50px; border-radius: 25px; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+.stat-info h4 { font-size: 1rem; color: var(--text-muted); margin-bottom: 5px; }
+.stat-info p { font-size: 1.8rem; font-weight: 800; color: white; }
+.progress-chart { background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px; text-align: center; }
+
+/* ==========================================================
+   RESPONSIVE DESKTOP UI
    ========================================================== */
 @media (min-width: 768px) {
     #main-app.responsive-wrapper { 
@@ -457,4 +478,3 @@ header { display: flex; justify-content: space-between; align-items: center; mar
     #feature-modal { max-width: 480px; margin: 3vh auto auto auto; height: 94vh; border-radius: 40px; overflow: hidden; }
     #media-viewer { position: fixed; border-radius: 0; }
 }
-
