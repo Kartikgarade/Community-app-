@@ -141,7 +141,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 
 .badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; width: 22px; height: 22px; border-radius: 50%; font-size: 0.7rem; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.6); border: 2px solid var(--bg); animation: popIn 0.4s var(--smooth); }
 
-/* Card icon colors - adjust as needed */
+/* Card icon colors */
 .app-card:nth-child(1) i { color: #f472b6; } .app-card:nth-child(2) i { color: #22d3ee; } .app-card:nth-child(3) i { color: #a855f7; } 
 .app-card:nth-child(4) i { color: #10b981; } .app-card:nth-child(6) i { color: #f59e0b; } .app-card:nth-child(8) i { color: #3b82f6; }
 .app-card:nth-child(10) i { color: #8b5cf6; } .app-card:nth-child(11) i { color: #10b981; } .app-card:nth-child(12) i { color: #f43f5e; }
@@ -287,14 +287,52 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .reply-preview { background: rgba(30, 30, 35, 0.95); backdrop-filter: blur(15px); padding: 14px 20px; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; justify-content: space-between; align-items: center; color: var(--accent); font-size: 0.95rem; font-weight: 500; position: absolute; bottom: 85px; left: 15px; right: 15px; z-index: 5; box-shadow: 0 -10px 25px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-bottom: none; animation: popIn 0.3s var(--smooth); }
 .reply-preview i { cursor: pointer; color: white; transition: var(--smooth); padding: 5px; font-size: 1.2rem; }
 
-.chat-bar { position: absolute; bottom: calc(15px + env(safe-area-inset-bottom)); left: 15px; right: 15px; padding: 14px 20px; background: rgba(30, 30, 35, 0.85); backdrop-filter: blur(25px); display: flex; gap: 14px; align-items: center; border-radius: 40px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10; transition: var(--smooth); }
-.chat-bar:focus-within { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 15px 40px rgba(124, 58, 237, 0.3); background: rgba(30, 30, 35, 0.98); }
-.chat-in { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 1.05rem; }
-.chat-bar i { transition: var(--smooth); font-size: 1.3rem; }
-.chat-bar i:hover { transform: scale(1.2) rotate(10deg); filter: brightness(1.2); }
-.zoom-action { color: #1a73e8; cursor: pointer; transition: var(--smooth); } 
-.zoom-action:active { transform: scale(0.9); }
+/* CHAT BAR - IMPROVED UI (closer send button) */
+.chat-bar {
+    position: absolute;
+    bottom: calc(15px + env(safe-area-inset-bottom));
+    left: 15px;
+    right: 15px;
+    padding: 8px 12px;
+    background: rgba(30, 30, 35, 0.85);
+    backdrop-filter: blur(25px);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border-radius: 40px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 10;
+    transition: var(--smooth);
+}
+.chat-bar:focus-within {
+    transform: translateY(-5px);
+    border-color: var(--primary);
+    box-shadow: 0 15px 40px rgba(124, 58, 237, 0.3);
+    background: rgba(30, 30, 35, 0.98);
+}
+.chat-in {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    outline: none;
+    font-size: 1rem;
+    padding: 8px 0;
+}
+.chat-bar i {
+    transition: var(--smooth);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+.chat-bar i:hover {
+    transform: scale(1.1);
+}
+.zoom-action {
+    color: #1a73e8;
+}
 
+/* Typing Indicator */
 .typing-wrap { display: flex; align-items: center; gap: 10px; margin-left: 10px; margin-bottom: 12px; animation: fadeIn 0.4s ease; }
 .typing-text { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
 .typing-indicator { background-color: rgba(39, 39, 42, 0.9); padding: 10px 16px; border-radius: 20px; border-bottom-left-radius: 4px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); }
@@ -443,6 +481,8 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .res-btn-yt:hover { background: var(--danger); color: white; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4); }
 .res-btn-book { background: rgba(124, 58, 237, 0.1); color: #a78bfa; border: 1px solid rgba(124, 58, 237, 0.3); }
 .res-btn-book:hover { background: var(--primary); color: white; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(124, 58, 237, 0.4); }
+.res-btn-other { background: rgba(255, 165, 0, 0.1); color: orange; border: 1px solid rgba(255,165,0,0.3); }
+.res-btn-other:hover { background: orange; color: black; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(255,165,0,0.4); }
 
 /* ==========================================================
    SWIPE ACTIONS FOR CHAT
@@ -463,6 +503,59 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .stat-info h4 { font-size: 1rem; color: var(--text-muted); margin-bottom: 5px; }
 .stat-info p { font-size: 1.8rem; font-weight: 800; color: white; }
 .progress-chart { background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px; text-align: center; }
+
+/* ==========================================================
+   TEACHER CARD WITH IMAGE
+   ========================================================== */
+.teacher-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(24, 24, 27, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid #333;
+    border-radius: 20px;
+    padding: 15px;
+    margin-bottom: 14px;
+    transition: var(--smooth);
+}
+.teacher-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,0.1);
+    background: rgba(34,34,34,0.9);
+}
+.teacher-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+    cursor: pointer;
+}
+.teacher-info {
+    flex: 1;
+}
+.teacher-info .subject {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+}
+.teacher-info .name {
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+.teacher-info .phone {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.teacher-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
 
 /* ==========================================================
    RESPONSIVE DESKTOP UI
