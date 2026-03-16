@@ -71,6 +71,7 @@
     <input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm">
     <input type="file" id="hw-file-input" hidden accept="image/*" multiple>
     <input type="file" id="report-file-input" hidden accept="image/*">
+    <input type="file" id="teacher-image-input" hidden accept="image/*">
     
     <div id="media-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:6000; align-items:center; justify-content:center; flex-direction:column;">
         <span class="close-media" onclick="app.closeMedia()">&times;</span>
@@ -138,7 +139,6 @@
             <div class="app-card" onclick="app.open('messages')"><i class="fas fa-envelope"></i><span>Messages</span><div id="badge-msg" class="badge hidden">0</div></div>
             <div class="app-card" onclick="app.open('teach')"><i class="fas fa-chalkboard-user"></i><span>Teachers</span></div>
             <div class="app-card" onclick="app.open('report-complaint')"><i class="fas fa-exclamation-triangle"></i><span>Report</span></div>
-            <!-- New Progress Card (replaces Ask Secret) -->
             <div class="app-card" onclick="app.open('progress')"><i class="fas fa-chart-line" style="color:#10b981"></i><span>Progress</span></div>
             <div class="app-card" onclick="app.open('school-work')"><i class="fas fa-id-card"></i><span>School Work</span></div>
         </div>
@@ -150,7 +150,6 @@
                 <div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check" style="color:var(--success);"></i><span>Mark Attendance</span></div>
                 <div class="admin-btn" onclick="app.openBan()"><i class="fas fa-users-cog" style="color:var(--warning);"></i><span>Users / VIP</span></div>
                 <div class="admin-btn" onclick="app.exportAttendanceCSV()"><i class="fas fa-file-excel" style="color:#10b981;"></i><span>Export CSV</span></div>
-                <!-- New Clear Attendance by Year button -->
                 <div class="admin-btn" onclick="app.clearAttendanceYear()"><i class="fas fa-calendar-times" style="color:var(--danger);"></i><span>Clear Attendance</span></div>
             </div>
             <div class="admin-btn" id="admin-mute-btn" onclick="app.toggleChatMute()" style="width:100%; border-color:var(--danger); background:rgba(239,68,68,0.1); flex-direction:row;"><i class="fas fa-comment-slash" style="color:var(--danger);"></i><span style="color:var(--danger);">Mute Global Chat</span></div>
