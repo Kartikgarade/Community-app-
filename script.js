@@ -65,8 +65,7 @@ let state = {
     holidays: {}, 
     exam: null, 
     structure: { notes: {}, papers: {} },
-    swipeOffset: 0,
-    swipedMsgId: null
+    teacherImageFile: null // for teacher image upload
 };
 
 window.app = {
@@ -351,14 +350,14 @@ window.app = {
         });
         
         onSnapshot(collection(db,"teachers"), (s)=>{ 
-            state.teachers=[]; 
-            s.forEach(d=>state.teachers.push({id:d.id,...d.data()})); 
+            state.teachers = []; 
+            s.forEach(d => state.teachers.push({id: d.id, ...d.data()})); 
             if(document.getElementById('teach-list')) app.renderTeachers(); 
         });
         
         onSnapshot(collection(db,"resources"), (s)=>{ 
-            state.resources=[]; 
-            s.forEach(d=>state.resources.push({id:d.id,...d.data()})); 
+            state.resources = []; 
+            s.forEach(d => state.resources.push({id: d.id, ...d.data()})); 
             if(state.currentChapter) app.openChapter(state.modalType, state.currentSubject, state.currentChapter); 
         });
     },
@@ -414,11 +413,11 @@ window.app = {
             b.innerHTML = `<div class="chat-wrap"><div id="chat-feed" class="chat-feed"></div><div id="typing-wrap" class="typing-wrap" style="display:none; position:absolute; bottom:80px;"><div class="typing-indicator"><span></span><span></span><span></span></div><span id="typing-text" class="typing-text"></span></div><div id="reply-bar" class="reply-preview" style="display:none"><span>Replying...</span><i class="fas fa-times" onclick="app.cancelReply()"></i></div><div id="chat-bar-container"></div></div>`; 
             app.renderChatUI(); 
             app.renderChat(); 
-            app.attachChatSwipe(); // enable swipe to open Ask Secret
+            app.attachChatSwipe(); // enable swipe to open Ask Secret (both directions)
         } 
         else if(t==='report-complaint') app.renderReportChatUI(b);
         else if(t==='ask-secret') app.renderSecretProgress(); // progress first
-        else if(t==='progress') app.renderProgressDashboard(); // new progress card
+        else if(t==='progress') app.renderProgressDashboard();
         else if(t==='timetable'){ 
             b.innerHTML = `<div class="tt-wrapper" style="margin:20px;"><div class="tt-grid" id="tt-grid"></div></div>`; 
             if(state.admin) b.innerHTML += `<div style="display:flex;gap:10px;margin:20px;"><button class="btn" style="flex:1;background:#333;color:white;padding:12px;" onclick="app.modal('Add Row',[{id:'t',label:'Time'}],v=>app.addTTRow(v[0]))">+ Row</button><button class="btn" style="flex:2;background:var(--primary);color:white;padding:12px;" onclick="app.saveTT()">Save Changes</button></div>`; 
@@ -427,8 +426,10 @@ window.app = {
         else if(t==='teach'){ 
             b.innerHTML='<div style="padding:20px;"></div>'; 
             const c = b.firstChild; 
-            if(state.admin) c.innerHTML=`<button class="btn" style="width:100%;background:var(--primary);color:white;padding:14px;margin-bottom:15px" onclick="app.modal('Add Teacher',[{id:'s',label:'Subject'},{id:'n',label:'Name'},{id:'p',label:'Phone'}],v=>app.addTeach(v))">Add Teacher</button>`; 
-            c.innerHTML+=`<div id="teach-list"></div>`; 
+            if(state.admin) {
+                c.innerHTML = `<button class="btn" style="width:100%;background:var(--primary);color:white;padding:14px;margin-bottom:15px" onclick="app.addTeacherWithImage()">Add Teacher</button>`;
+            }
+            c.innerHTML += `<div id="teach-list"></div>`; 
             app.renderTeachers(); 
         } 
         else if(t==='attendance'){ 
@@ -443,7 +444,7 @@ window.app = {
         } 
     },
 
-    // --- SWIPE GESTURE FOR GLOBAL CHAT ---
+    // --- SWIPE GESTURE FOR GLOBAL CHAT (both directions) ---
     attachChatSwipe: () => {
         const feed = document.getElementById('chat-feed');
         if(!feed) return;
@@ -457,19 +458,19 @@ window.app = {
         
         feed.addEventListener('touchend', (e) => {
             touchEndX = e.changedTouches[0].screenX;
-            // Left-to-right swipe: start < end and difference > 80px
-            if(touchEndX - touchStartX > 80) {
+            const diff = touchEndX - touchStartX;
+            // Swipe left-to-right (diff > 80) OR right-to-left (diff < -80)
+            if(Math.abs(diff) > 80) {
                 app.open('ask-secret');
                 app.showToast("Opening Ask Secret...", "fa-user-secret");
             }
         }, { passive: true });
     },
 
-    // --- PROGRESS DASHBOARD (new card) ---
+    // --- PROGRESS DASHBOARD ---
     renderProgressDashboard: () => {
         const b = document.getElementById('f-body');
         
-        // Calculate stats
         const totalHomework = state.homework.length;
         const completedHomework = state.homework.filter(h => h.progress && h.progress[state.user]?.completed).length;
         const homeworkPercent = totalHomework ? Math.round((completedHomework/totalHomework)*100) : 0;
@@ -1006,13 +1007,13 @@ window.app = {
         if(!c) return;
         
         const isVIPorAdmin = state.admin || state.vips.includes(state.user);
-        const meetBtnHtml = isVIPorAdmin ? `<i class="fas fa-video zoom-action" style="font-size:1.2rem; margin-right:10px; color:#1a73e8;" title="Schedule Google Meet" onclick="app.modal('Host Google Meet',[{id:'t',label:'Meeting Subject'},{id:'l',label:'Google Meet Link'}],v=>app.sendMeet(v))"></i>` : '';
-        const micBtnHtml = `<i class="fas fa-microphone" style="color:var(--danger);cursor:pointer;font-size:1.3rem;margin-right:10px;" onclick="app.toggleRecording()"></i>`;
+        const meetBtnHtml = isVIPorAdmin ? `<i class="fas fa-video zoom-action" style="font-size:1.2rem; margin-right:8px; color:#1a73e8;" title="Schedule Google Meet" onclick="app.modal('Host Google Meet',[{id:'t',label:'Meeting Subject'},{id:'l',label:'Google Meet Link'}],v=>app.sendMeet(v))"></i>` : '';
+        const micBtnHtml = `<i class="fas fa-microphone" style="color:var(--danger);cursor:pointer;font-size:1.2rem;margin-right:8px;" onclick="app.toggleRecording()"></i>`;
 
         if(state.chatMuted && !state.admin) {
             c.innerHTML = `<div class="chat-bar" style="justify-content:center; background:rgba(239,68,68,0.1); border-color:var(--danger);"><span style="color:var(--danger); font-weight:700;"><i class="fas fa-lock"></i> Chat is Paused by Admin</span></div>`;
         } else {
-            c.innerHTML = `<div class="chat-bar">${meetBtnHtml}${micBtnHtml}<label><i class="fas fa-paperclip" style="color:#aaa;cursor:pointer;font-size:1.2rem;margin-right:10px;"></i><input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm" onchange="app.sendFile(event,'chat')"></label><input id="c-in" class="chat-in" placeholder="Message Global Chat..." oninput="app.startTyping()"><i class="fas fa-paper-plane" style="color:var(--accent);cursor:pointer;font-size:1.3rem;" onclick="app.sendChat()"></i></div>`;
+            c.innerHTML = `<div class="chat-bar">${meetBtnHtml}${micBtnHtml}<label><i class="fas fa-paperclip" style="color:#aaa;cursor:pointer;font-size:1.2rem;margin-right:8px;"></i><input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm" onchange="app.sendFile(event,'chat')"></label><input id="c-in" class="chat-in" placeholder="Message Global Chat..." oninput="app.startTyping()"><i class="fas fa-paper-plane" style="color:var(--accent);cursor:pointer;font-size:1.2rem;" onclick="app.sendChat()"></i></div>`;
         }
     },
 
@@ -1330,6 +1331,180 @@ window.app = {
         
         app.popup("✅ Work marked as done!");
         app.renderSchoolWorkGrid();
+    },
+
+    // --- TEACHERS WITH IMAGES ---
+    addTeacherWithImage: () => {
+        // Trigger file input, then open modal with image
+        const input = document.getElementById('teacher-image-input');
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                app.compressImage(file, (base64) => {
+                    state.teacherImageFile = base64;
+                    app.modal('Add Teacher', [
+                        {id:'s', label:'Subject'},
+                        {id:'n', label:'Name'},
+                        {id:'p', label:'Phone'}
+                    ], (v) => app.addTeacher(v, state.teacherImageFile));
+                });
+            }
+            input.value = ''; // reset
+        };
+        input.click();
+    },
+    
+    addTeacher: async (v, imgBase64) => {
+        if(!v[0] || !v[1] || !v[2]) return app.popup("All fields required!");
+        await addDoc(collection(db,"teachers"), {
+            sub: v[0],
+            name: v[1],
+            phone: v[2],
+            img: imgBase64 || null
+        });
+        state.teacherImageFile = null;
+        app.popup("Teacher Added");
+        app.open('teach');
+    },
+    
+    editTeacher: (id) => {
+        const teacher = state.teachers.find(t => t.id === id);
+        if(!teacher) return;
+        // Prefill modal with current values
+        const input = document.getElementById('teacher-image-input');
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                app.compressImage(file, (base64) => {
+                    state.teacherImageFile = base64;
+                    app.modal('Edit Teacher', [
+                        {id:'s', label:'Subject'},
+                        {id:'n', label:'Name'},
+                        {id:'p', label:'Phone'}
+                    ], (v) => app.updateTeacher(id, v, state.teacherImageFile));
+                });
+            } else {
+                // No new image
+                app.modal('Edit Teacher', [
+                    {id:'s', label:'Subject'},
+                    {id:'n', label:'Name'},
+                    {id:'p', label:'Phone'}
+                ], (v) => app.updateTeacher(id, v, teacher.img));
+            }
+            input.value = '';
+        };
+        input.click();
+    },
+    
+    updateTeacher: async (id, v, imgBase64) => {
+        await updateDoc(doc(db, "teachers", id), {
+            sub: v[0],
+            name: v[1],
+            phone: v[2],
+            img: imgBase64
+        });
+        app.popup("Teacher updated!");
+        app.open('teach');
+    },
+    
+    renderTeachers: () => {
+        const c = document.getElementById('teach-list');
+        if(!c) return;
+        c.innerHTML = '';
+        state.teachers.forEach(t => {
+            const imgSrc = t.img || `https://ui-avatars.com/api/?name=${t.name}&background=random`;
+            c.innerHTML += `
+            <div class="teacher-card">
+                <img src="${imgSrc}" class="teacher-avatar" onclick="app.viewMedia('${imgSrc}', 'image')">
+                <div class="teacher-info">
+                    <div class="subject">${t.sub}</div>
+                    <div class="name">${t.name}</div>
+                    <div class="phone">${t.phone}</div>
+                </div>
+                <div class="teacher-actions">
+                    ${state.admin ? `
+                        <i class="fas fa-pencil-alt" style="color:var(--accent); cursor:pointer;" onclick="app.editTeacher('${t.id}')"></i>
+                        <i class="fas fa-trash del-icon" onclick="app.delItem('teachers','${t.id}')"></i>
+                    ` : `<a href="tel:${t.phone}" style="color:var(--success); font-size:1.5rem;"><i class="fas fa-phone"></i></a>`}
+                </div>
+            </div>`;
+        });
+    },
+
+    // --- RESOURCE EDITING (Notes/Papers) ---
+    editResource: (id) => {
+        const res = state.resources.find(r => r.id === id);
+        if(!res) return;
+        app.modal('Edit Material', [
+            {id:'t', label:'Title', value: res.title},
+            {id:'d', label:'Drive Link', value: res.drive || ''},
+            {id:'y', label:'YouTube URL', value: res.yt || ''},
+            {id:'b', label:'Book Link', value: res.book || ''},
+            {id:'o', label:'Other Link', value: res.other || ''}
+        ], (v) => app.updateResource(id, v));
+    },
+    
+    updateResource: async (id, v) => {
+        await updateDoc(doc(db, "resources", id), {
+            title: v[0],
+            drive: v[1],
+            yt: v[2],
+            book: v[3],
+            other: v[4]
+        });
+        app.popup("Material updated!");
+        // Reopen the chapter to refresh
+        app.openChapter(state.modalType, state.currentSubject, state.currentChapter);
+    },
+    
+    // --- MODIFIED openChapter to include edit button ---
+    openChapter: (type, folder, chap) => {
+        state.currentChapter = chap;
+        document.getElementById('f-subtitle').innerText = `${folder} > ${chap}`;
+        const b = document.getElementById('f-body');
+        b.innerHTML = '<div style="padding:20px;"></div>';
+        const c = b.firstChild;
+        if(state.admin) {
+            c.innerHTML = `<button class="btn" style="width:100%;margin-bottom:20px;background:var(--success);color:black;padding:15px;" onclick="app.modal('Add to ${chap}',[
+                {id:'t',label:'Title'},
+                {id:'d',label:'Drive Link'},
+                {id:'y',label:'YouTube URL'},
+                {id:'b',label:'Book Link'},
+                {id:'o',label:'Other Link'}
+            ],v=>app.addRes('${type}','${folder}','${chap}',v))">Add Material</button>`;
+        }
+        const list = state.resources.filter(r => r.type === type && r.folder === folder && r.chap === chap);
+        list.forEach(r => {
+            let btns = '';
+            if(r.drive) btns += `<button class="res-btn res-btn-drive" onclick="window.open('${r.drive}')"><i class="fas fa-link"></i> Drive</button>`;
+            if(r.yt) btns += `<button class="res-btn res-btn-yt" onclick="app.viewYt('${app.getYtId(r.yt)}')"><i class="fab fa-youtube"></i> Video</button>`;
+            if(r.book) btns += `<button class="res-btn res-btn-book" onclick="window.open('${r.book}')"><i class="fas fa-book"></i> Book</button>`;
+            if(r.other) btns += `<button class="res-btn res-btn-other" onclick="window.open('${r.other}')"><i class="fas fa-external-link-alt"></i> Other</button>`;
+            c.innerHTML += `
+            <div class="resource-card">
+                <div class="res-head">
+                    <span>${r.title}</span>
+                    <div>
+                        ${state.admin ? `<i class="fas fa-pencil-alt" style="color:var(--accent); margin-right:10px; cursor:pointer;" onclick="app.editResource('${r.id}')"></i>` : ''}
+                        ${state.admin ? `<i class="fas fa-trash del-icon" onclick="app.delItem('resources','${r.id}')"></i>` : ''}
+                    </div>
+                </div>
+                <div class="res-actions">${btns}</div>
+            </div>`;
+        });
+    },
+    
+    // --- MODIFIED addRes to include other field ---
+    addRes: async (type, folder, chap, v) => {
+        await addDoc(collection(db,"resources"), {
+            type, folder, chap,
+            title: v[0],
+            drive: v[1] || "",
+            yt: v[2] || "",
+            book: v[3] || "",
+            other: v[4] || ""
+        });
+        app.popup("Material Added");
     },
 
     // --- 📅 CALENDAR ENGINE ---
@@ -1679,28 +1854,6 @@ window.app = {
         b.innerHTML = html + '</div>'; 
     }, 
     
-    openChapter: (type, folder, chap) => { 
-        state.currentChapter = chap; 
-        document.getElementById('f-subtitle').innerText = `${folder} > ${chap}`; 
-        const b = document.getElementById('f-body'); 
-        b.innerHTML = '<div style="padding:20px;"></div>'; 
-        const c = b.firstChild; 
-        if(state.admin) c.innerHTML = `<button class="btn" style="width:100%;margin-bottom:20px;background:var(--success);color:black;padding:15px;" onclick="app.modal('Add to ${chap}',[{id:'t',label:'Title'},{id:'d',label:'Drive Link'},{id:'y',label:'YouTube URL'},{id:'b',label:'Book Link'}],v=>app.addRes('${type}','${folder}','${chap}',v))">Add Material</button>`; 
-        const list = state.resources.filter(r => r.type === type && r.folder === folder && r.chap === chap); 
-        list.forEach(r => { 
-            let btns = ''; 
-            if(r.drive) btns += `<button class="res-btn res-btn-drive" onclick="window.open('${r.drive}')"><i class="fas fa-link"></i> Drive</button>`; 
-            if(r.yt) btns += `<button class="res-btn res-btn-yt" onclick="app.viewYt('${app.getYtId(r.yt)}')"><i class="fab fa-youtube"></i> Video</button>`; 
-            if(r.book) btns += `<button class="res-btn res-btn-book" onclick="window.open('${r.book}')"><i class="fas fa-book"></i> Book</button>`; 
-            c.innerHTML += `<div class="resource-card"><div class="res-head"><span>${r.title}</span>${state.admin?`<i class="fas fa-trash del-icon" onclick="app.delItem('resources','${r.id}')"></i>`:''}</div><div class="res-actions">${btns}</div></div>`; 
-        }); 
-    }, 
-    
-    addRes: async (type, folder, chap, v) => { 
-        await addDoc(collection(db,"resources"), { type, folder, chap, title:v[0], drive:v[1]||"", yt:v[2]||"", book:v[3]||"" }); 
-        app.popup("Material Added"); 
-    }, 
-    
     renderTimeTable: () => { 
         const g = document.getElementById('tt-grid'); 
         if(!g) return; 
@@ -1841,7 +1994,10 @@ window.app = {
         document.getElementById('im-title').innerText=t; 
         const c=document.getElementById('im-fields'); 
         c.innerHTML=''; 
-        i.forEach(x=>{c.innerHTML+=`<input id="mi-${x.id}" class="modal-field" placeholder="${x.label}">`}); 
+        i.forEach(x => {
+            const val = x.value || '';
+            c.innerHTML += `<input id="mi-${x.id}" class="modal-field" placeholder="${x.label}" value="${val}">`;
+        });
         document.getElementById('input-modal').style.display='flex'; 
         document.getElementById('im-save').onclick=()=>{ 
             const v=i.map(x=>document.getElementById(`mi-${x.id}`).value); 
@@ -1869,21 +2025,6 @@ window.app = {
             app.open('ann'); 
         } 
     }, 
-    
-    addTeach: async (v) => { 
-        await addDoc(collection(db,"teachers"),{sub:v[0],name:v[1],phone:v[2]}); 
-        app.popup("Teacher Added"); 
-        app.open('teach'); 
-    }, 
-    
-    renderTeachers: () => { 
-        const c=document.getElementById('teach-list'); 
-        if(!c) return; 
-        c.innerHTML=''; 
-        state.teachers.forEach(t=>{ 
-            c.innerHTML+=`<div class="list-card"><div><b style="color:var(--accent);font-size:1.1rem;">${t.sub}</b><br><span style="color:white;font-weight:600;font-size:1.05rem;">${t.name}</span><br><small style="color:#aaa;">${t.phone}</small></div>${state.admin?`<i class="fas fa-trash del-icon" onclick="app.delItem('teachers','${t.id}')"></i>`:`<a href="tel:${t.phone}" style="color:var(--success);font-size:1.5rem;padding:10px;"><i class="fas fa-phone"></i></a>`}</div>`; 
-        }); 
-    },
     
     exportAttendanceCSV: () => { 
         let csv = "Date," + USERS.filter(u=>u!=='admin'&&u!=='Guest').join(",") + "\n"; 
