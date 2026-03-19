@@ -23,6 +23,7 @@ html, body {
     --warning: #f59e0b;
     --vip: #ffd700;
     --admin: #ff4500;
+    --report-incharge: #ff8c00;
     --holiday: #d946ef; 
     
     --glass: rgba(255, 255, 255, 0.04);
@@ -217,6 +218,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .hw-btn { width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 1rem; position: relative; transition: var(--smooth); }
 .hw-btn:active { background: #e2e8f0; transform: scale(0.9); }
 .hw-btn.complete { background: var(--success); color: white; }
+.hw-btn.share { background: var(--accent); color: white; }
 .hw-badge { position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; width: 18px; height: 18px; border-radius: 50%; font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid white; }
 .hw-uploader { font-size: 0.7rem; color: #64748b; text-align: right; margin-top: 8px; line-height: 1.2; }
 .hw-uploader span { color: #3b82f6; font-weight: 800; display: block; text-transform: uppercase; }
@@ -259,6 +261,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 
 .admin-tag { background: var(--admin); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; box-shadow: 0 0 10px var(--admin); }
 .vip-tag { background: var(--vip); color: black; font-size: 0.65rem; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; box-shadow: 0 0 10px var(--vip); }
+.report-incharge-tag { background: var(--report-incharge); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; box-shadow: 0 0 10px var(--report-incharge); }
 
 .msg.report-bot { background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(0,0,0,0)); border: 1px solid var(--danger); border-bottom-left-radius: 4px; }
 .report-tag { color: var(--danger); font-size: 0.65rem; background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold; }
@@ -293,11 +296,11 @@ header { display: flex; justify-content: space-between; align-items: center; mar
     bottom: calc(15px + env(safe-area-inset-bottom));
     left: 15px;
     right: 15px;
-    padding: 8px 12px;
+    padding: 4px 4px 4px 12px;
     background: rgba(30, 30, 35, 0.85);
     backdrop-filter: blur(25px);
     display: flex;
-    gap: 8px;
+    gap: 4px;
     align-items: center;
     border-radius: 40px;
     border: 1px solid rgba(255,255,255,0.1);
@@ -322,14 +325,20 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 }
 .chat-bar i {
     transition: var(--smooth);
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
 }
 .chat-bar i:hover {
-    transform: scale(1.1);
+    background: rgba(255,255,255,0.1);
 }
 .zoom-action {
     color: #1a73e8;
+}
+.send-icon {
+    color: var(--accent);
+    background: rgba(124,58,237,0.2);
 }
 
 /* Typing Indicator */
@@ -556,6 +565,11 @@ header { display: flex; justify-content: space-between; align-items: center; mar
     gap: 10px;
     align-items: center;
 }
+
+/* ==========================================================
+   ANNOUNCEMENT VIDEO
+   ========================================================== */
+.ann-video { width: 100%; border-radius: 12px; margin-top: 10px; max-height: 300px; object-fit: cover; }
 
 /* ==========================================================
    RESPONSIVE DESKTOP UI
