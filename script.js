@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, deleteDoc, getDoc, updateDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
-// --- CONFIGURATION ---
+// --- CONFIGURATION (Replace with your own Firebase config) ---
 const appConfig = { 
     apiKey: "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", 
     authDomain: "all-in-one-community.firebaseapp.com", 
@@ -11,7 +11,6 @@ const appConfig = {
     messagingSenderId: "461209960805", 
     appId: "1:461209960805:web:6f73660513cf6d3c40e18c" 
 };
-
 const appFire = initializeApp(appConfig);
 const db = getFirestore(appFire);
 const messaging = getMessaging(appFire);
@@ -34,6 +33,7 @@ const formatDate = (dateStr) => {
 let state = { 
     user: null, 
     admin: false, 
+    reportIncharges: [],      // users with report-incharge role
     attn: {}, 
     chats: [], 
     events: [], 
@@ -65,7 +65,7 @@ let state = {
     holidays: {}, 
     exam: null, 
     structure: { notes: {}, papers: {} },
-    teacherImageFile: null // for teacher image upload
+    teacherImageFile: null
 };
 
 window.app = {
@@ -196,6 +196,8 @@ window.app = {
         onSnapshot(collection(db, "profiles"), (s) => { 
             s.forEach(d => { 
                 state.profiles[d.id] = d.data().img; 
+                // Also store role if present
+                if(d.data().role) state.profiles[d.id+'_role'] = d.data().role;
             }); 
             if(state.profiles[state.user]) document.getElementById('u-img').src = state.profiles[state.user]; 
             document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton')); 
@@ -222,6 +224,10 @@ window.app = {
                     document.getElementById('main-app').style.display = 'none'; 
                 } 
             } 
+        });
+        
+        onSnapshot(doc(db, "settings", "report_incharges"), (snap) => {
+            if(snap.exists()) state.reportIncharges = snap.data().list || [];
         });
         
         onSnapshot(doc(db, "settings", "chat"), (snap) => { 
@@ -413,10 +419,10 @@ window.app = {
             b.innerHTML = `<div class="chat-wrap"><div id="chat-feed" class="chat-feed"></div><div id="typing-wrap" class="typing-wrap" style="display:none; position:absolute; bottom:80px;"><div class="typing-indicator"><span></span><span></span><span></span></div><span id="typing-text" class="typing-text"></span></div><div id="reply-bar" class="reply-preview" style="display:none"><span>Replying...</span><i class="fas fa-times" onclick="app.cancelReply()"></i></div><div id="chat-bar-container"></div></div>`; 
             app.renderChatUI(); 
             app.renderChat(); 
-            app.attachChatSwipe(); // enable swipe to open Ask Secret (both directions)
+            app.attachChatSwipe();
         } 
         else if(t==='report-complaint') app.renderReportChatUI(b);
-        else if(t==='ask-secret') app.renderSecretProgress(); // progress first
+        else if(t==='ask-secret') app.renderSecretProgress();
         else if(t==='progress') app.renderProgressDashboard();
         else if(t==='timetable'){ 
             b.innerHTML = `<div class="tt-wrapper" style="margin:20px;"><div class="tt-grid" id="tt-grid"></div></div>`; 
@@ -438,10 +444,126 @@ window.app = {
         else if(t==='ann'){ 
             b.innerHTML='<div style="padding:20px;"></div>'; 
             const c = b.firstChild; 
-            if(state.admin) c.innerHTML=`<div style="background:var(--surface);padding:15px;border-radius:16px;margin-bottom:15px"><textarea id="a-in" style="width:100%;background:transparent;border:none;color:white;outline:none;min-height:60px" placeholder="Write Announcement..."></textarea><div style="display:flex;justify-content:space-between;margin-top:10px"><label style="color:var(--accent)"><i class="fas fa-image" style="font-size:1.2rem;cursor:pointer"></i><input type="file" hidden onchange="app.handleFile(event)"></label><button class="btn" style="background:var(--primary);padding:8px 20px;color:white" onclick="app.postAnn()">Post</button></div></div>`; 
+            if(state.admin) c.innerHTML = `
+                <div style="background:var(--surface);padding:15px;border-radius:16px;margin-bottom:15px">
+                    <textarea id="a-in" style="width:100%;background:transparent;border:none;color:white;outline:none;min-height:60px" placeholder="Write Announcement..."></textarea>
+                    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+                        <label class="btn" style="background:#333;color:white;padding:8px 15px;cursor:pointer;">
+                            <i class="fas fa-image"></i> Add Image
+                            <input type="file" hidden accept="image/*" onchange="app.handleAnnFile(event, 'image')">
+                        </label>
+                        <label class="btn" style="background:#333;color:white;padding:8px 15px;cursor:pointer;">
+                            <i class="fas fa-video"></i> Add Video (max 5 min)
+                            <input type="file" id="ann-video-input" hidden accept="video/mp4,video/webm" onchange="app.handleAnnFile(event, 'video')">
+                        </label>
+                        <button class="btn" style="background:var(--accent);color:black;padding:8px 20px;" onclick="app.postAnn()">Post</button>
+                        <button class="btn" style="background:var(--success);color:black;padding:8px 20px;" onclick="app.postAnnToChat()">Post to Chat</button>
+                    </div>
+                </div>`;
             c.innerHTML+=`<div id="ann-feed"></div>`; 
             app.renderAnn(); 
         } 
+    },
+
+    // --- ANNOUNCEMENT WITH VIDEO ---
+    handleAnnFile: (e, type) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        if(type === 'video') {
+            // Check duration (max 300 seconds = 5 minutes)
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.onloadedmetadata = () => {
+                if(video.duration > 300) {
+                    app.popup("Video too long. Maximum 5 minutes.");
+                    return;
+                }
+                app.compressVideo(file, (base64) => {
+                    state.annFile = { type: 'video', data: base64 };
+                });
+            };
+            video.src = URL.createObjectURL(file);
+        } else {
+            app.compressImage(file, (base64) => {
+                state.annFile = { type: 'image', data: base64 };
+            });
+        }
+    },
+
+    compressVideo: (file, callback) => {
+        // For simplicity, just read as data URL (no compression)
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => callback(reader.result);
+    },
+
+    postAnn: async () => {
+        const text = document.getElementById('a-in').value;
+        if(!text && !state.annFile) return app.popup("Please enter text or attach media.");
+        const annData = {
+            text: text || "",
+            time: Date.now()
+        };
+        if(state.annFile) {
+            annData.mediaType = state.annFile.type;
+            annData.media = state.annFile.data;
+        }
+        await addDoc(collection(db,"announcements"), annData);
+        state.annFile = null;
+        document.getElementById('a-in').value = '';
+        app.popup("Announcement posted!");
+        app.open('ann');
+    },
+
+    postAnnToChat: async () => {
+        const text = document.getElementById('a-in').value;
+        if(!text && !state.annFile) return app.popup("Please enter text or attach media.");
+        let chatText = `📢 **ANNOUNCEMENT**\n${text}`;
+        let img = null;
+        if(state.annFile) {
+            if(state.annFile.type === 'image') img = state.annFile.data;
+            else chatText += `\n[Video attached - click to view]`;
+        }
+        await addDoc(collection(db,"chats"), {
+            user: state.user,
+            text: chatText,
+            img: img,
+            audio: null,
+            time: Date.now(),
+            replyTo: null,
+            deletedBy: [],
+            seenBy: [state.user],
+            reactions: []
+        });
+        if(state.annFile && state.annFile.type === 'video') {
+            // Also send video as separate message? For simplicity, just show text.
+        }
+        state.annFile = null;
+        document.getElementById('a-in').value = '';
+        app.popup("Announcement sent to chat!");
+        app.open('ann');
+    },
+
+    renderAnn: () => {
+        const c = document.getElementById('ann-feed');
+        if(!c) return;
+        c.innerHTML = '';
+        state.anns.forEach(a => {
+            let mediaHtml = '';
+            if(a.media) {
+                if(a.mediaType === 'video') {
+                    mediaHtml = `<video src="${a.media}" controls class="ann-video"></video>`;
+                } else {
+                    mediaHtml = `<img src="${a.media}" style="width:100%;border-radius:14px;margin-top:15px;cursor:pointer;" onclick="app.viewMedia('${a.media}', 'image')">`;
+                }
+            }
+            c.innerHTML += `<div class="list-card" style="display:block;padding:25px;">
+                <div><span style="color:var(--accent);font-weight:800;letter-spacing:1px;"><i class="fas fa-bullhorn"></i> ANNOUNCEMENT</span> <small style="float:right;color:#666">${new Date(a.time).toLocaleDateString()}</small></div>
+                <p style="margin-top:15px;color:white;line-height:1.5;">${a.text}</p>
+                ${mediaHtml}
+                ${state.admin ? `<div style="margin-top:15px;text-align:right"><i class="fas fa-trash del-icon" onclick="app.delItem('announcements','${a.id}')"></i></div>` : ''}
+            </div>`;
+        });
     },
 
     // --- SWIPE GESTURE FOR GLOBAL CHAT (both directions) ---
@@ -459,12 +581,41 @@ window.app = {
         feed.addEventListener('touchend', (e) => {
             touchEndX = e.changedTouches[0].screenX;
             const diff = touchEndX - touchStartX;
-            // Swipe left-to-right (diff > 80) OR right-to-left (diff < -80)
             if(Math.abs(diff) > 80) {
                 app.open('ask-secret');
                 app.showToast("Opening Ask Secret...", "fa-user-secret");
             }
         }, { passive: true });
+    },
+
+    // --- COPY MESSAGE ---
+    copyMessage: () => {
+        if(!state.selectedMsg) return;
+        const text = state.selectedMsg.text;
+        navigator.clipboard.writeText(text).then(() => {
+            app.showToast("Message copied!", "fa-copy");
+        }).catch(() => {
+            app.popup("Failed to copy.");
+        });
+        document.getElementById('msg-options').style.display = 'none';
+    },
+
+    // --- SHARE HOMEWORK ---
+    shareHomework: (hwId) => {
+        const hw = state.homework.find(h => h.id === hwId);
+        if(!hw) return;
+        const shareText = `📚 ${hw.sub}: ${hw.title}\n${hw.desc}\nDue: ${hw.date}`;
+        if(navigator.share) {
+            navigator.share({
+                title: 'Homework',
+                text: shareText,
+                url: window.location.href
+            }).catch(() => {});
+        } else {
+            navigator.clipboard.writeText(shareText).then(() => {
+                app.showToast("Homework details copied!", "fa-share-alt");
+            });
+        }
     },
 
     // --- PROGRESS DASHBOARD ---
@@ -581,7 +732,7 @@ window.app = {
             <div id="secret-feed" class="chat-feed" style="background:rgba(20,20,20,0.9); box-shadow:none; padding-bottom:90px;"></div>
             <div class="chat-bar">
                 <input id="secret-in" class="chat-in" placeholder="Ask a secret question...">
-                <i class="fas fa-paper-plane" style="color:var(--text-muted);cursor:pointer;font-size:1.3rem;" onclick="app.sendSecret()"></i>
+                <i class="fas fa-paper-plane send-icon" style="color:var(--accent);cursor:pointer;font-size:1.3rem;" onclick="app.sendSecret()"></i>
             </div>
         </div>`;
         app.renderSecretChat();
@@ -684,6 +835,7 @@ window.app = {
             const pic = state.profiles[m.user] || `https://ui-avatars.com/api/?name=${m.user}&background=random`;
             const isVip = state.vips.includes(m.user);
             const isAdmin = m.user === 'admin';
+            const isReportIncharge = state.reportIncharges.includes(m.user);
             
             if(!mine && (!m.seenBy || !m.seenBy.includes(state.user))) {
                 updateDoc(doc(db, "secret_chats", m.id), { 
@@ -692,7 +844,7 @@ window.app = {
             }
             
             let adminDeleteBtn = '';
-            if(state.admin && m.user !== state.user) {
+            if(state.admin || isReportIncharge) {
                 adminDeleteBtn = `<button class="swipe-btn" onclick="app.adminDeleteSecret('${m.id}', event)"><i class="fas fa-trash"></i></button>`;
             }
             
@@ -708,6 +860,7 @@ window.app = {
                     <b>${state.admin ? `Anonymous <span class="anon-tag">Real: ${m.user}</span>` : 'Anonymous Student'}</b> 
                     ${isVip ? '<span class="vip-tag">VIP</span>' : ''}
                     ${isAdmin ? '<span class="admin-tag">ADMIN</span>' : ''}
+                    ${isReportIncharge ? '<span class="report-incharge-tag">REPORT INCHARGE</span>' : ''}
                     <br>${m.text}
                     ${seenInfo}
                     <div style="text-align:right;font-size:0.6rem;opacity:0.7;margin-top:5px">${new Date(m.time).toLocaleString()}</div>
@@ -727,7 +880,7 @@ window.app = {
         event.stopPropagation();
         app.popup("Delete this secret message for everyone?", 'confirm', async () => {
             await deleteDoc(doc(db, "secret_chats", msgId));
-            app.showToast("Message deleted by admin", "fa-trash");
+            app.showToast("Message deleted", "fa-trash");
         });
     },
     
@@ -743,10 +896,10 @@ window.app = {
         b.innerHTML = `<div class="chat-wrap"><div id="report-feed" class="chat-feed" style="background:rgba(20,20,20,0.9); box-shadow:none; padding-bottom:90px;">
             <div class="msg-row"><div class="msg report-bot" style="max-width:85%;"><b>Report Complaint</b> <span class="report-tag">REPORT</span><br>Hello ${state.user}! Submit your complaint or report any issue. Attach images if needed.</div></div>
         </div>
-        <div class="chat-bar" style="border-radius:25px;">
-            <label title="Attach Image"><i class="fas fa-image" style="color:var(--danger);cursor:pointer;font-size:1.3rem;margin-right:12px;" onclick="document.getElementById('report-file-input').click()"></i></label>
+        <div class="chat-bar">
+            <label title="Attach Image"><i class="fas fa-image" style="color:var(--danger);cursor:pointer;font-size:1.3rem;" onclick="document.getElementById('report-file-input').click()"></i></label>
             <input id="report-in" class="chat-in" placeholder="Type your complaint...">
-            <i class="fas fa-paper-plane" style="color:var(--primary);cursor:pointer;font-size:1.3rem;" onclick="app.sendReport()"></i>
+            <i class="fas fa-paper-plane send-icon" style="color:var(--primary);cursor:pointer;font-size:1.3rem;" onclick="app.sendReport()"></i>
         </div></div>`;
         app.renderReportChat();
     },
@@ -787,16 +940,17 @@ window.app = {
         state.reportComplaints.forEach(m => {
             const mine = m.user === state.user;
             const pic = state.profiles[m.user] || `https://ui-avatars.com/api/?name=${m.user}&background=random`;
+            const isReportIncharge = state.reportIncharges.includes(state.user);
             let mediaHtml = m.img ? `<img src="${m.img}" class="msg-img" onclick="app.viewMedia('${m.img}', 'image')">` : '';
             let statusHtml = '';
             
             if(m.resolved) {
                 statusHtml = `<div style="font-size:0.7rem; color:var(--success); margin-top:5px;">✓ Resolved by ${m.resolvedBy} on ${formatDate(m.resolvedAt)}</div>`;
-            } else if(state.admin) {
+            } else if(state.admin || isReportIncharge) {
                 statusHtml = `<div style="margin-top:8px;"><button class="btn" style="background:var(--success);color:black;padding:5px 10px;font-size:0.8rem;" onclick="app.resolveReport('${m.id}')">Mark Resolved</button></div>`;
             }
             
-            if(state.admin && !mine && !m.resolved) {
+            if(state.admin || isReportIncharge) {
                 statusHtml += `<div style="margin-top:5px;"><i class="fas fa-trash del-icon" onclick="app.delItem('report_complaints','${m.id}')"></i></div>`;
             }
             
@@ -823,6 +977,34 @@ window.app = {
             resolvedAt: Date.now()
         });
         app.popup("Report marked as resolved!");
+    },
+
+    // --- MANAGE REPORT INCHARGES (Admin only) ---
+    manageReportIncharges: () => {
+        if(!state.admin) return;
+        const usersList = USERS.filter(u => u !== 'admin' && u !== 'Guest');
+        let html = '<div style="padding:20px;"><h3>Report Incharges</h3><p>Select users to assign as report incharges:</p>';
+        usersList.forEach(u => {
+            const isIncharge = state.reportIncharges.includes(u);
+            html += `
+            <div class="list-card" style="justify-content:space-between;">
+                <span>${u}</span>
+                <button class="btn" style="background:${isIncharge?'var(--danger)':'var(--success)'};color:white;padding:5px 10px;" onclick="app.toggleReportIncharge('${u}')">
+                    ${isIncharge ? 'Remove' : 'Make Incharge'}
+                </button>
+            </div>`;
+        });
+        html += '</div>';
+        document.getElementById('f-body').innerHTML = html;
+    },
+
+    toggleReportIncharge: async (username) => {
+        const newList = state.reportIncharges.includes(username) 
+            ? state.reportIncharges.filter(u => u !== username)
+            : [...state.reportIncharges, username];
+        await setDoc(doc(db, "settings", "report_incharges"), { list: newList });
+        app.popup(`Report incharges updated.`);
+        app.manageReportIncharges();
     },
 
     // --- ✉️ FORMAL LETTER MESSAGES ---
@@ -863,7 +1045,7 @@ window.app = {
                     <input type="file" id="dm-input" hidden accept="image/*" onchange="app.sendFile(event,'dm')">
                 </label>
                 <textarea id="dm-in" class="chat-in" style="min-height:50px; max-height:120px; resize:none; font-size:0.95rem; font-family:inherit; padding-top:6px;" placeholder="Write a formal message to ${targetUser}..."></textarea>
-                <i class="fas fa-paper-plane" style="color:var(--accent);cursor:pointer;font-size:1.4rem; margin-bottom:5px; margin-left:8px;" onclick="app.sendDM()"></i>
+                <i class="fas fa-paper-plane send-icon" style="color:var(--accent);cursor:pointer;font-size:1.4rem; margin-bottom:5px; margin-left:8px;" onclick="app.sendDM()"></i>
             </div>
         </div>`;
         app.renderDirectMessages();
@@ -1007,13 +1189,13 @@ window.app = {
         if(!c) return;
         
         const isVIPorAdmin = state.admin || state.vips.includes(state.user);
-        const meetBtnHtml = isVIPorAdmin ? `<i class="fas fa-video zoom-action" style="font-size:1.2rem; margin-right:8px; color:#1a73e8;" title="Schedule Google Meet" onclick="app.modal('Host Google Meet',[{id:'t',label:'Meeting Subject'},{id:'l',label:'Google Meet Link'}],v=>app.sendMeet(v))"></i>` : '';
-        const micBtnHtml = `<i class="fas fa-microphone" style="color:var(--danger);cursor:pointer;font-size:1.2rem;margin-right:8px;" onclick="app.toggleRecording()"></i>`;
+        const meetBtnHtml = isVIPorAdmin ? `<i class="fas fa-video zoom-action" style="font-size:1.3rem;" title="Schedule Google Meet" onclick="app.modal('Host Google Meet',[{id:'t',label:'Meeting Subject'},{id:'l',label:'Google Meet Link'}],v=>app.sendMeet(v))"></i>` : '';
+        const micBtnHtml = `<i class="fas fa-microphone" style="color:var(--danger);cursor:pointer;font-size:1.3rem;" onclick="app.toggleRecording()"></i>`;
 
         if(state.chatMuted && !state.admin) {
             c.innerHTML = `<div class="chat-bar" style="justify-content:center; background:rgba(239,68,68,0.1); border-color:var(--danger);"><span style="color:var(--danger); font-weight:700;"><i class="fas fa-lock"></i> Chat is Paused by Admin</span></div>`;
         } else {
-            c.innerHTML = `<div class="chat-bar">${meetBtnHtml}${micBtnHtml}<label><i class="fas fa-paperclip" style="color:#aaa;cursor:pointer;font-size:1.2rem;margin-right:8px;"></i><input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm" onchange="app.sendFile(event,'chat')"></label><input id="c-in" class="chat-in" placeholder="Message Global Chat..." oninput="app.startTyping()"><i class="fas fa-paper-plane" style="color:var(--accent);cursor:pointer;font-size:1.2rem;" onclick="app.sendChat()"></i></div>`;
+            c.innerHTML = `<div class="chat-bar">${meetBtnHtml}${micBtnHtml}<label><i class="fas fa-paperclip" style="color:#aaa;cursor:pointer;font-size:1.2rem;"></i><input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm" onchange="app.sendFile(event,'chat')"></label><input id="c-in" class="chat-in" placeholder="Message Global Chat..." oninput="app.startTyping()"><i class="fas fa-paper-plane send-icon" style="color:var(--accent);cursor:pointer;font-size:1.3rem;" onclick="app.sendChat()"></i></div>`;
         }
     },
 
@@ -1072,6 +1254,7 @@ window.app = {
             const mine = m.user === state.user; 
             const isVip = state.vips.includes(m.user); 
             const isAdmin = m.user === 'admin';
+            const isReportIncharge = state.reportIncharges.includes(m.user);
             const pic = state.profiles[m.user] || `https://ui-avatars.com/api/?name=${m.user}&background=random`;
             
             let mediaHtml = '';
@@ -1095,8 +1278,9 @@ window.app = {
                 ${!mine ? `<img src="${pic}" class="chat-pfp">` : ''}
                 <div class="msg ${mine?'mine':'theirs'}" onclick="app.msgOpt('${m.id}', '${m.user}', '${safeText}')">
                     <b>${m.user}</b> 
-                    ${isAdmin ? '<span class="admin-tag" style="background:var(--admin); color:white;">ADMIN</span>' : ''}
-                    ${isVip ? '<span class="vip-tag" style="background:var(--vip); color:black;">VIP</span>' : ''}
+                    ${isAdmin ? '<span class="admin-tag">ADMIN</span>' : ''}
+                    ${isVip ? '<span class="vip-tag">VIP</span>' : ''}
+                    ${isReportIncharge ? '<span class="report-incharge-tag">REPORT INCHARGE</span>' : ''}
                     <br>
                     ${m.replyTo ? `<div class="quoted-msg"><b>Replying to:</b><br>${m.replyTo}</div>` : ''}
                     ${mediaHtml}${m.text}
@@ -1109,7 +1293,7 @@ window.app = {
         c.scrollTop = c.scrollHeight;
     },
 
-    // --- HOMEWORK WITH PROGRESS ---
+    // --- HOMEWORK WITH PROGRESS & SHARE ---
     triggerHwUpload: () => document.getElementById('hw-file-input').click(),
     
     renderHomework: () => { 
@@ -1147,7 +1331,7 @@ window.app = {
                 </div>
                 <div class="hw-actions">
                     <div class="hw-btns">
-                        <div class="hw-btn"><i class="fas fa-share-alt"></i></div>
+                        <div class="hw-btn share" onclick="event.stopPropagation(); app.shareHomework('${hw.id}')"><i class="fas fa-share-alt"></i></div>
                         <div class="hw-btn" style="color:var(--danger)">
                             <i class="fas fa-paperclip"></i>
                             ${hasImgs ? `<div class="hw-badge">${hw.images.length}</div>` : ''}
@@ -1335,7 +1519,6 @@ window.app = {
 
     // --- TEACHERS WITH IMAGES ---
     addTeacherWithImage: () => {
-        // Trigger file input, then open modal with image
         const input = document.getElementById('teacher-image-input');
         input.onchange = (e) => {
             const file = e.target.files[0];
@@ -1349,7 +1532,7 @@ window.app = {
                     ], (v) => app.addTeacher(v, state.teacherImageFile));
                 });
             }
-            input.value = ''; // reset
+            input.value = '';
         };
         input.click();
     },
@@ -1370,7 +1553,6 @@ window.app = {
     editTeacher: (id) => {
         const teacher = state.teachers.find(t => t.id === id);
         if(!teacher) return;
-        // Prefill modal with current values
         const input = document.getElementById('teacher-image-input');
         input.onchange = (e) => {
             const file = e.target.files[0];
@@ -1378,17 +1560,16 @@ window.app = {
                 app.compressImage(file, (base64) => {
                     state.teacherImageFile = base64;
                     app.modal('Edit Teacher', [
-                        {id:'s', label:'Subject'},
-                        {id:'n', label:'Name'},
-                        {id:'p', label:'Phone'}
+                        {id:'s', label:'Subject', value: teacher.sub},
+                        {id:'n', label:'Name', value: teacher.name},
+                        {id:'p', label:'Phone', value: teacher.phone}
                     ], (v) => app.updateTeacher(id, v, state.teacherImageFile));
                 });
             } else {
-                // No new image
                 app.modal('Edit Teacher', [
-                    {id:'s', label:'Subject'},
-                    {id:'n', label:'Name'},
-                    {id:'p', label:'Phone'}
+                    {id:'s', label:'Subject', value: teacher.sub},
+                    {id:'n', label:'Name', value: teacher.name},
+                    {id:'p', label:'Phone', value: teacher.phone}
                 ], (v) => app.updateTeacher(id, v, teacher.img));
             }
             input.value = '';
@@ -1453,11 +1634,9 @@ window.app = {
             other: v[4]
         });
         app.popup("Material updated!");
-        // Reopen the chapter to refresh
         app.openChapter(state.modalType, state.currentSubject, state.currentChapter);
     },
     
-    // --- MODIFIED openChapter to include edit button ---
     openChapter: (type, folder, chap) => {
         state.currentChapter = chap;
         document.getElementById('f-subtitle').innerText = `${folder} > ${chap}`;
@@ -1494,7 +1673,6 @@ window.app = {
         });
     },
     
-    // --- MODIFIED addRes to include other field ---
     addRes: async (type, folder, chap, v) => {
         await addDoc(collection(db,"resources"), {
             type, folder, chap,
@@ -2006,24 +2184,6 @@ window.app = {
                 document.getElementById('input-modal').style.display='none'; 
             } else app.popup("Required field empty!"); 
         }; 
-    }, 
-    
-    renderAnn: () => { 
-        const c=document.getElementById('ann-feed'); 
-        if(!c) return; 
-        c.innerHTML=''; 
-        state.anns.forEach(a=>{ 
-            c.innerHTML+=`<div class="list-card" style="display:block;padding:25px;"><div><span style="color:var(--accent);font-weight:800;letter-spacing:1px;"><i class="fas fa-bullhorn"></i> ANNOUNCEMENT</span> <small style="float:right;color:#666">${new Date(a.time).toLocaleDateString()}</small></div><p style="margin-top:15px;color:white;line-height:1.5;">${a.text}</p>${a.img?`<img src="${a.img}" style="width:100%;border-radius:14px;margin-top:15px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;" onclick="app.viewMedia('${a.img}', 'image')">`:''}${state.admin?`<div style="margin-top:15px;text-align:right"><i class="fas fa-trash del-icon" onclick="app.delItem('announcements','${a.id}')"></i></div>`:''}</div>`; 
-        }); 
-    }, 
-    
-    postAnn: async () => { 
-        const v=document.getElementById('a-in').value; 
-        if(v || state.file){ 
-            await addDoc(collection(db,"announcements"),{text:v,img:state.file,time:Date.now()}); 
-            state.file=null; 
-            app.open('ann'); 
-        } 
     }, 
     
     exportAttendanceCSV: () => { 
