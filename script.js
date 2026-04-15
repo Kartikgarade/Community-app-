@@ -16,7 +16,7 @@ const db = getFirestore(appFire);
 const messaging = getMessaging(appFire);
 
 // --- CONSTANTS ---
-const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrit","Atharva","Vedant","Mithilesh","Parth","Ansh","Rudransh","Siddharth","deep","Chinmay","Guest"];
+const USERS = ["Kartik","Rohan","Ranveer","Rishikesh","Malhar","Kunal","Raj","Saksham","Shravan","Soham Shivkar","Soham Ozkar","Soham Gade","Amrut","Atharva","Vedant","Mithilesh","Parth","Ansh","Rudransh","Siddharth","deep","Chinmay","Guest"];
 const BAD_WORDS = ["fuck you", "motherfucker", "bitch", "asshole"];
 
 const getLocalDate = () => { 
