@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>All In One Community - Final</title>
-    
+    <title>All In One Community</title>
     <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,123 +11,45 @@
 </head>
 <body>
 
-    <!-- Ban screen, toasts, popups, etc. (same as before) -->
+    <!-- Ban screen, toasts, popups (unchanged structure) -->
     <div id="ban-screen" style="display:none; position:fixed; inset:0; background:#050505; z-index:10000; align-items:center; justify-content:center; text-align:center; padding:20px;">
-        <div>
-            <i class="fas fa-user-slash" style="font-size:4rem; color:var(--danger); margin-bottom:20px;"></i>
-            <h1 style="color:white; margin-bottom:10px;">Access Denied</h1>
-            <p style="color:#aaa; font-size:1.1rem; max-width: 300px; margin: 0 auto;">Access has been banned by the administrator.</p>
-        </div>
+        <div><i class="fas fa-user-slash" style="font-size:4rem; color:var(--danger); margin-bottom:20px;"></i><h1 style="color:white;">Access Denied</h1><p style="color:#aaa;">Access has been banned by the administrator.</p></div>
     </div>
-
     <div id="toast-container"></div>
-
     <div id="custom-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
-        <div class="popup-box">
-            <div id="popup-msg" class="popup-msg">Message</div>
-            <div id="popup-acts" class="popup-acts"></div>
-        </div>
+        <div class="popup-box"><div id="popup-msg" class="popup-msg">Message</div><div id="popup-acts" class="popup-acts"></div></div>
     </div>
-
     <div id="msg-options" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
-        <div class="msg-opt-box">
-            <button onclick="app.copyMessage()"><i class="fas fa-copy" style="color:var(--accent); margin-right:8px;"></i> Copy Message</button>
-            <button onclick="app.showReactions()"><i class="fas fa-smile-beam" style="color:#f59e0b; margin-right:8px;"></i> React to Message</button>
-            <button onclick="app.doReply()"><i class="fas fa-reply" style="color:var(--accent); margin-right:8px;"></i> Reply</button>
-            <button onclick="app.showInfo()"><i class="fas fa-eye" style="color:var(--success); margin-right:8px;"></i> Info (Seen By)</button>
-            <button id="btn-msg-del-everyone" style="color:var(--danger)" onclick="app.doDelMsg('everyone')"><i class="fas fa-trash-alt" style="margin-right:8px;"></i> Delete for Everyone</button>
-            <button id="btn-msg-del-me" style="color:var(--warning)" onclick="app.doDelMsg('me')"><i class="fas fa-eraser" style="margin-right:8px;"></i> Delete for Me</button>
-            <button onclick="document.getElementById('msg-options').style.display='none'" style="text-align:center; color:#aaa; font-weight:bold;">Cancel</button>
-        </div>
+        <div class="msg-opt-box"><button onclick="app.copyMessage()"><i class="fas fa-copy"></i> Copy Message</button><button onclick="app.showReactions()"><i class="fas fa-smile-beam"></i> React</button><button onclick="app.doReply()"><i class="fas fa-reply"></i> Reply</button><button onclick="app.showInfo()"><i class="fas fa-eye"></i> Seen By</button><button id="btn-msg-del-everyone" style="color:var(--danger)" onclick="app.doDelMsg('everyone')"><i class="fas fa-trash-alt"></i> Delete for Everyone</button><button id="btn-msg-del-me" style="color:var(--warning)" onclick="app.doDelMsg('me')"><i class="fas fa-eraser"></i> Delete for Me</button><button onclick="document.getElementById('msg-options').style.display='none'">Cancel</button></div>
     </div>
-
-    <div id="reaction-picker" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
-        <div class="glass" style="padding:20px 30px; border-radius:40px; display:flex; gap:20px; font-size:2rem; box-shadow:0 20px 50px rgba(0,0,0,0.8);">
-            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('👍')">👍</span>
-            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('❤️')">❤️</span>
-            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('😂')">😂</span>
-            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('😮')">😮</span>
-            <span style="cursor:pointer; transition:0.2s;" onclick="app.addReaction('🙏')">🙏</span>
-        </div>
-    </div>
-
-    <div id="recording-overlay" style="display:none; position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(239,68,68,0.95); backdrop-filter:blur(15px); padding:12px 25px; border-radius:30px; color:white; font-weight:800; z-index:9000; align-items:center; gap:20px; box-shadow:0 10px 40px rgba(239,68,68,0.5); border:1px solid rgba(255,255,255,0.2);">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:12px; height:12px; background:white; border-radius:50%; animation:pulse 1s infinite alternate;"></div>
-            <span id="rec-time">0:00</span>
-        </div>
-        <div style="display:flex; gap:15px; border-left:1px solid rgba(255,255,255,0.3); padding-left:15px;">
-            <i class="fas fa-trash" style="font-size:1.2rem; cursor:pointer; color:#fca5a5;" onclick="app.stopRecording(false)" title="Cancel"></i>
-            <i class="fas fa-paper-plane" style="font-size:1.2rem; cursor:pointer; color:white;" onclick="app.stopRecording(true)" title="Send"></i>
-        </div>
-    </div>
-
-    <div id="loader-overlay">
-        <div class="spinner"></div>
-        <p style="margin-top:15px;color:white;font-weight:600">Syncing Data...</p>
-    </div>
-    
+    <div id="reaction-picker" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center; backdrop-filter:blur(5px);"><div class="glass" style="padding:20px 30px; border-radius:40px; display:flex; gap:20px; font-size:2rem;"><span onclick="app.addReaction('👍')">👍</span><span onclick="app.addReaction('❤️')">❤️</span><span onclick="app.addReaction('😂')">😂</span><span onclick="app.addReaction('😮')">😮</span><span onclick="app.addReaction('🙏')">🙏</span></div></div>
+    <div id="recording-overlay" style="display:none; position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(239,68,68,0.95); backdrop-filter:blur(15px); padding:12px 25px; border-radius:30px; color:white; z-index:9000; align-items:center; gap:20px;"><div style="display:flex; gap:10px;"><div style="width:12px; height:12px; background:white; border-radius:50%; animation:pulse 1s infinite alternate;"></div><span id="rec-time">0:00</span></div><div style="display:flex; gap:15px;"><i class="fas fa-trash" style="cursor:pointer;" onclick="app.stopRecording(false)"></i><i class="fas fa-paper-plane" style="cursor:pointer;" onclick="app.stopRecording(true)"></i></div></div>
+    <div id="loader-overlay"><div class="spinner"></div><p style="margin-top:15px;color:white;">Syncing Data...</p></div>
     <input type="file" id="avatar-input" hidden accept="image/*">
     <input type="file" id="chat-input" hidden accept="image/*,video/mp4,video/webm">
-    <input type="file" id="hw-file-input" hidden accept="image/*" multiple>
+    <input type="file" id="hw-file-input" hidden accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
     <input type="file" id="report-file-input" hidden accept="image/*">
     <input type="file" id="teacher-image-input" hidden accept="image/*">
-    <input type="file" id="ann-video-input" hidden accept="video/mp4,video/webm">
+    <input type="file" id="ann-video-input" hidden accept="video/mp4,video/webm,application/pdf">
+    <div id="media-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:6000; align-items:center; justify-content:center; flex-direction:column;"><span class="close-media" onclick="app.closeMedia()">&times;</span><a id="media-download" href="#" download class="download-media"><i class="fas fa-download"></i></a><img id="media-img" style="display:none; max-width:95%; max-height:80%; border-radius:12px;"><video id="media-vid" controls playsinline style="display:none; max-width:95%; max-height:80%; border-radius:12px;"></video><div id="yt-container" style="display:none; width:95%; max-width:800px; aspect-ratio:16/9; border-radius:12px; overflow:hidden;"><iframe id="media-iframe" style="width:100%; height:100%; border:none;" allowfullscreen></iframe></div></div>
+    <div id="input-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:6000; align-items:center; justify-content:center;"><div class="modal-box"><h3 id="im-title">Edit</h3><div id="im-fields"></div><div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px"><button onclick="document.getElementById('input-modal').style.display='none'" class="btn" style="background:#333;">Cancel</button><button id="im-save" class="btn" style="background:var(--primary);">Save</button></div></div></div>
     
-    <div id="media-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:6000; align-items:center; justify-content:center; flex-direction:column;">
-        <span class="close-media" onclick="app.closeMedia()">&times;</span>
-        <a id="media-download" href="#" download class="download-media"><i class="fas fa-download"></i></a>
-        <img id="media-img" style="display:none; max-width:95%; max-height:80%; border-radius:12px;">
-        <video id="media-vid" controls playsinline style="display:none; max-width:95%; max-height:80%; border-radius:12px;"></video>
-        <div id="yt-container" style="display:none; width:95%; max-width:800px; aspect-ratio:16/9; border-radius:12px; overflow:hidden;">
-            <iframe id="media-iframe" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
-        </div>
-    </div>
-
-    <div id="input-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:6000; align-items:center; justify-content:center;">
-        <div class="modal-box">
-            <h3 id="im-title" style="margin-bottom:15px;color:white">Edit</h3>
-            <div id="im-fields"></div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:15px">
-                <button onclick="document.getElementById('input-modal').style.display='none'" class="btn" style="background:#333;color:white;padding:8px 16px">Cancel</button>
-                <button id="im-save" class="btn" style="background:var(--primary);color:white;padding:8px 20px">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="login-screen" style="display:flex; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center;">
-        <div class="login-card">
-            <h1 class="login-title">All In One Community</h1>
-            <span class="founder-badge">Founder: CDT Master Kartik Garade</span>
-            <input id="u-in" class="login-input" placeholder="Username" autocomplete="off">
-            <input id="p-in" type="password" class="login-input" placeholder="Password">
-            <button class="btn btn-login" onclick="app.login()">Get Started</button>
-            <p id="err-msg" style="color:var(--danger); margin-top:15px; font-size:0.9rem; display:none;"></p>
-        </div>
-    </div>
-
+    <!-- Login Screen (original) -->
+    <div id="login-screen" style="display:flex; position:fixed; inset:0; background:var(--bg); z-index:5000; align-items:center; justify-content:center;"><div class="login-card"><h1 class="login-title">All In One Community</h1><span class="founder-badge">Founder: CDT Master Kartik Garade</span><input id="u-in" class="login-input" placeholder="Username"><input id="p-in" type="password" class="login-input" placeholder="Password"><button class="btn btn-login" onclick="app.login()">Get Started</button><p id="err-msg" style="color:var(--danger); margin-top:15px; display:none;"></p></div></div>
+    
+    <!-- Main App (added notification bell and dual timetable) -->
     <div id="main-app" class="responsive-wrapper" style="display:none;">
         <header>
             <div class="user-info">
-                <div style="position:relative; display:inline-block; cursor:pointer;" onclick="app.uploadAvatar()" title="Update Profile Picture">
-                    <img id="u-img" class="avatar skeleton">
-                    <div style="position:absolute; bottom:-2px; right:-2px; background:var(--primary); border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg); box-shadow:0 0 5px rgba(0,0,0,0.5);">
-                        <i class="fas fa-camera" style="color:white; font-size:0.6rem;"></i>
-                    </div>
-                </div>
-                <div>
-                    <h3 id="u-name" class="skeleton" style="width:80px;height:1em;margin-bottom:5px"></h3>
-                    <span id="u-role" class="skeleton" style="width:50px;height:0.8em;font-size:0.8rem;color:#888"></span>
-                </div>
+                <div style="position:relative; cursor:pointer;" onclick="app.uploadAvatar()"><img id="u-img" class="avatar skeleton"><div style="position:absolute; bottom:-2px; right:-2px; background:var(--primary); border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg);"><i class="fas fa-camera" style="font-size:0.6rem;"></i></div></div>
+                <div><h3 id="u-name" class="skeleton"></h3><span id="u-role" class="skeleton" style="font-size:0.8rem; color:#888"></span></div>
             </div>
-            <button onclick="app.logout()" class="logout-btn">Logout</button>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <div class="bell-icon" id="notification-bell" onclick="app.toggleNotificationDrawer()"><i class="fas fa-bell"></i><span id="notif-badge" class="notification-badge hidden">0</span></div>
+                <button onclick="app.logout()" class="logout-btn">Logout</button>
+            </div>
         </header>
-
-        <div class="glass" style="padding:20px; margin-bottom:20px; border-left:4px solid var(--accent); display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:0.9rem; color:#aaa;">Today's Status</span>
-            <span id="my-att-status" style="font-weight:800; font-size:1.1rem;">-</span>
-        </div>
-
+        <div class="glass" style="padding:20px; margin-bottom:20px; border-left:4px solid var(--accent); display:flex; justify-content:space-between;"><span style="color:#aaa;">Today's Status</span><span id="my-att-status">-</span></div>
         <div class="section-title">QUICK ACCESS</div>
         <div class="grid">
             <div class="app-card" onclick="app.open('notes')"><i class="fas fa-book"></i><span>Notes</span></div>
@@ -141,47 +62,22 @@
             <div class="app-card" onclick="app.open('messages')"><i class="fas fa-envelope"></i><span>Messages</span><div id="badge-msg" class="badge hidden">0</div></div>
             <div class="app-card" onclick="app.open('teach')"><i class="fas fa-chalkboard-user"></i><span>Teachers</span></div>
             <div class="app-card" onclick="app.open('report-complaint')"><i class="fas fa-exclamation-triangle"></i><span>Report</span></div>
-            <div class="app-card" onclick="app.open('progress')"><i class="fas fa-chart-line" style="color:#10b981"></i><span>Progress</span></div>
+            <div class="app-card" onclick="app.open('progress')"><i class="fas fa-chart-line"></i><span>Progress</span></div>
             <div class="app-card" onclick="app.open('school-work')"><i class="fas fa-id-card"></i><span>School Work</span></div>
         </div>
-
-        <div id="admin-zone" class="admin-zone">
-            <div class="admin-head"><i class="fas fa-shield-alt"></i> Admin Panel</div>
-            <div class="admin-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 12px;">
-                <div class="admin-btn" onclick="app.modal('Manage Schedule',[{id:'type',label:'Type (Event/Exam)'},{id:'t',label:'Title'},{id:'d',label:'Date (YYYY-MM-DD)'}],(v)=>app.addSchedule(v))"><i class="fas fa-calendar-plus" style="color:var(--accent);"></i><span>Schedule</span></div>
-                <div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check" style="color:var(--success);"></i><span>Mark Attendance</span></div>
-                <div class="admin-btn" onclick="app.openBan()"><i class="fas fa-users-cog" style="color:var(--warning);"></i><span>Users / VIP</span></div>
-                <div class="admin-btn" onclick="app.exportAttendanceCSV()"><i class="fas fa-file-excel" style="color:#10b981;"></i><span>Export CSV</span></div>
-                <div class="admin-btn" onclick="app.clearAttendanceYear()"><i class="fas fa-calendar-times" style="color:var(--danger);"></i><span>Clear Attendance</span></div>
-                <div class="admin-btn" onclick="app.manageReportIncharges()"><i class="fas fa-user-tie" style="color:var(--accent);"></i><span>Report Incharges</span></div>
-            </div>
-            <div class="admin-btn" id="admin-mute-btn" onclick="app.toggleChatMute()" style="width:100%; border-color:var(--danger); background:rgba(239,68,68,0.1); flex-direction:row;"><i class="fas fa-comment-slash" style="color:var(--danger);"></i><span style="color:var(--danger);">Mute Global Chat</span></div>
-        </div>
-
+        <div id="admin-zone" class="admin-zone"><div class="admin-head"><i class="fas fa-shield-alt"></i> Admin Panel</div><div class="admin-grid" style="grid-template-columns:1fr 1fr; margin-bottom:12px;"><div class="admin-btn" onclick="app.modal('Manage Schedule',[{id:'type',label:'Type (Event/Exam)'},{id:'t',label:'Title'},{id:'d',label:'Date (YYYY-MM-DD)'}],v=>app.addSchedule(v))"><i class="fas fa-calendar-plus"></i><span>Schedule</span></div><div class="admin-btn" onclick="app.openAttn()"><i class="fas fa-user-check"></i><span>Mark Attendance</span></div><div class="admin-btn" onclick="app.openBan()"><i class="fas fa-users-cog"></i><span>Users / Roles</span></div><div class="admin-btn" onclick="app.exportAttendanceCSV()"><i class="fas fa-file-excel"></i><span>Export CSV</span></div><div class="admin-btn" onclick="app.clearAttendanceYear()"><i class="fas fa-calendar-times"></i><span>Clear Attendance</span></div><div class="admin-btn" onclick="app.manageReportIncharges()"><i class="fas fa-user-tie"></i><span>Report Incharges</span></div></div><div class="admin-btn" id="admin-mute-btn" onclick="app.toggleChatMute()" style="width:100%; border-color:var(--danger); background:rgba(239,68,68,0.1); flex-direction:row;"><i class="fas fa-comment-slash"></i><span>Mute Global Chat</span></div></div>
         <div class="section-title">SCHEDULE & CALENDAR</div>
-        <div class="cal-box">
-            <div class="cal-header"><span id="cal-month">Month</span> <span id="clock" style="font-weight:400;color:#888">00:00</span></div>
-            <div class="week-row"><div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div></div>
-            <div id="cal-grid" class="cal-grid"></div>
-        </div>
-
-        <div id="schedule-board" class="glass" style="padding:15px; display:flex; gap:15px; align-items:center; margin-bottom:30px;">
-            <span id="schedule-badge" style="font-weight:800; font-size:0.75rem; padding:4px 8px; border-radius:6px; letter-spacing:1px; background:var(--text-muted); color:black;">SCHEDULE</span>
-            <span id="schedule-text" style="font-size:0.95rem; font-weight:600; color:white;">No Upcoming Schedule</span>
-            <i class="fas fa-trash del-icon" id="schedule-del-btn" style="margin-left:auto; display:none;" onclick="app.delSchedule()"></i>
-        </div>
+        <div class="cal-box"><div class="cal-header"><span id="cal-month">Month</span><span id="clock" style="font-weight:400;color:#888">00:00</span></div><div class="week-row"><div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div></div><div id="cal-grid" class="cal-grid"></div></div>
+        <div id="schedule-board" class="glass" style="padding:15px; display:flex; gap:15px; align-items:center; margin-bottom:30px;"><span id="schedule-badge" style="font-weight:800; font-size:0.75rem; padding:4px 8px; border-radius:6px; background:var(--text-muted); color:black;">SCHEDULE</span><span id="schedule-text" style="font-size:0.95rem; font-weight:600;">No Upcoming Schedule</span><i class="fas fa-trash del-icon" id="schedule-del-btn" style="margin-left:auto; display:none;" onclick="app.delSchedule()"></i></div>
     </div>
-
-    <div id="feature-modal" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:3000; flex-direction:column;">
-        <div class="modal-nav" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid rgba(255,255,255,0.05); height:70px;">
-            <button onclick="app.handleModalBack()" style="background:none;border:none;color:white;font-size:1.4rem; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
-            <div style="text-align: right; flex: 1;">
-                <b id="f-title" style="display:block; font-size: 1.1rem; line-height: 1.2;">Title</b>
-                <span id="f-subtitle" style="font-size: 0.75rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;"></span>
-            </div>
-        </div>
-        <div id="f-body" style="flex:1; overflow-y:auto; padding:0; scroll-behavior:smooth; display:flex; flex-direction:column;"></div>
-    </div>
+    
+    <div id="feature-modal" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:3000; flex-direction:column;"><div class="modal-nav" style="display:flex; align-items:center; padding:15px 20px; border-bottom:1px solid rgba(255,255,255,0.05);"><button onclick="app.handleModalBack()" style="background:none;border:none;color:white;font-size:1.4rem; cursor:pointer;"><i class="fas fa-arrow-left"></i></button><div style="text-align:right; flex:1;"><b id="f-title" style="display:block;">Title</b><span id="f-subtitle" style="font-size:0.75rem; color:var(--accent);"></span></div></div><div id="f-body" style="flex:1; overflow-y:auto; padding:0;"></div></div>
+    
+    <!-- Notification Drawer -->
+    <div id="notif-drawer" class="notification-drawer"><div style="padding:15px; background:#1a1a1a; border-bottom:1px solid #333; font-weight:800;">Notifications <i class="fas fa-times" style="float:right; cursor:pointer;" onclick="app.toggleNotificationDrawer()"></i></div><div id="notif-list" style="padding:10px;"></div></div>
+    
+    <!-- In‑App Browser for Entab -->
+    <div id="inapp-browser" style="display:none; position:fixed; inset:0; background:#000; z-index:11000; flex-direction:column;"><div class="inapp-toolbar"><button onclick="document.getElementById('inapp-browser').style.display='none'"><i class="fas fa-arrow-left"></i> Back</button><span>Entab Online</span></div><iframe id="inapp-iframe" class="inapp-iframe" src="about:blank"></iframe></div>
 
     <script type="module" src="script.js"></script>
 </body>
